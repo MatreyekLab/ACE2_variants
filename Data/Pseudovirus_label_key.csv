@@ -1,0 +1,14 @@
+pseudovirus_env,virus_label,sequence_confirmed
+VSVG,Vesicular stomatitis virus,yes
+SARS1,SARS CoV,yes
+SARS2,SARS CoV-2,yes
+G720,d19,yes
+G723,SARS2_min,yes
+G730,SARS CoV-2 RRAR>A(Furin),yes
+G730E,SARS CoV-2 RRAR>A(Furin),yes
+G742,SARS CoV-2,yes
+G746,SARS CoV-2 P812R,yes
+G746B,SARS CoV-2 P812R,yes
+G769B,SARS CoV-2 D614G,yes
+G769C,SARS CoV-2 D614G,yes
+G742A,SARS CoV-2,yes

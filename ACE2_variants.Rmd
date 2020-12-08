@@ -1,0 +1,612 @@
+---
+title: "ACE2_variants"
+author: "Kenneth Matreyek"
+date: "12/7/2020"
+output: html_document
+---
+
+```{r Load packages}
+rm(list = ls())
+library(tidyverse)
+library(ggrepel)
+#install.packages('patchwork')
+library(patchwork)
+set.seed(123)
+
+virus_label_factors <- c("VSVG","SARS1", "SARS2", "SARS2_min", "d19", "d19_min", "RRAR>A(Furin)", "P812R","D614G")
+virus_colors <- c("VSVG" = "red", "SARS1" = "darkgreen", "SARS2" = "blue")
+
+to_single_notation <- function(arg1){
+  if(toupper(arg1) == "ALA"){return("A")};if(toupper(arg1) == "CYS"){return("C")};if(toupper(arg1) == "ASP"){return("D")};if(toupper(arg1) == "GLU"){return("E")};if(toupper(arg1) == "PHE"){return("F")};if(toupper(arg1) == "GLY"){return("G")};if(toupper(arg1) == "HIS"){return("H")};if(toupper(arg1) == "ILE"){return("I")};if(toupper(arg1) == "LYS"){return("K")};if(toupper(arg1) == "LEU"){return("L")};if(toupper(arg1) == "MET"){return("M")};if(toupper(arg1) == "ASN"){return("N")};if(toupper(arg1) == "PRO"){return("P")};if(toupper(arg1) == "GLN"){return("Q")};if(toupper(arg1) == "ARG"){return("R")};if(toupper(arg1) == "SER"){return("S")};if(toupper(arg1) == "THR"){return("T")};if(toupper(arg1) == "VAL"){return("V")};if(toupper(arg1) == "TRP"){return("W")};if(toupper(arg1) == "TYR"){return("Y")};if(toupper(arg1) == "TER"){return("X")}
+}
+```
+
+```{r Import data}
+recombined_construct_key <- read.csv(file = "Data/Construct_label_key.csv", header = T, stringsAsFactors = F)
+pseudovirus_label_key <- read.csv(file = "Data/Pseudovirus_label_key.csv", header = T, stringsAsFactors = F)
+
+staining_data <- merge(read.csv(file = "Data/Staining_data.csv", header = T, stringsAsFactors = F), recombined_construct_key, by = "recombined_construct") %>% arrange(date)
+infection_data <- merge(read.csv(file = "Data/Infection_data.csv", header = T, stringsAsFactors = F), recombined_construct_key, by = "recombined_construct") %>% arrange(date)
+```
+
+## Introducing LLP Int-iCasp9-Blast
+```{r Introducing LLP Int-iCasp9-Blast}
+llp_comparison1 <- read.csv(file = "Data/Int-iCasp9-Blast/Int-iCasp9-Blast_200317.csv", header = T, stringsAsFactors = F)
+llp_comparison2 <- read.csv(file = "Data/Int-iCasp9-Blast/Int-iCasp9-Blast_200624.csv", header = T, stringsAsFactors = F)
+llp_comparison3 <- read.csv(file = "Data/Int-iCasp9-Blast/Int-iCasp9-Blast_200702.csv", header = T, stringsAsFactors = F)
+llp_comparison4 <- read.csv(file = "Data/Int-iCasp9-Blast/Int-iCasp9-Blast_200706.csv", header = T, stringsAsFactors = F)
+
+colnames(llp_comparison3) <- colnames(llp_comparison2);colnames(llp_comparison4) <- colnames(llp_comparison2)
+llp_comparison_combined <- rbind(llp_comparison1, llp_comparison2, llp_comparison3, llp_comparison4)
+
+llp_comparison_combined$cells <- factor(llp_comparison_combined$cells, levels = c("Int-Blast","iCasp9-Blast","Int-iCasp9-Blast"))
+llp_comparison_combined$bxb1 <- factor(llp_comparison_combined$bxb1, levels = c("none","added"))
+llp_comparison_combined$selection <- factor(llp_comparison_combined$selection, levels = c("None","AP1903"))
+llp_comparison_combined$single_recombinants <- llp_comparison_combined$red + llp_comparison_combined$green
+llp_comparison_combined$count <- 1
+
+llp_comparison_summary <- llp_comparison_combined %>% group_by(cells, bxb1, selection) %>% summarize(mean = mean(single_recombinants), sd = sd(single_recombinants), count = sum(count), .groups = 'drop')
+llp_comparison_summary$upper_ci <- llp_comparison_summary$mean + llp_comparison_summary$sd/sqrt(llp_comparison_summary$count -1) * 1.96
+llp_comparison_summary$lower_ci <- llp_comparison_summary$mean - llp_comparison_summary$sd/sqrt(llp_comparison_summary$count -1) * 1.96
+
+llp_comparison_summary[llp_comparison_summary$lower_ci < 0,"lower_ci"] <- 0
+
+LLP_comparison_plot <- ggplot() + theme_bw() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1), panel.grid.major.x = element_blank(), legend.position = "none") + 
+  scale_y_continuous(limits = c(0,105), expand = c(0,0.5)) +
+  geom_hline(yintercept = 0, size = 2, alpha = 0.2) +
+  geom_errorbar(data = llp_comparison_summary, aes(x = cells, ymin = lower_ci, ymax = upper_ci, group = bxb1), alpha = 0.4, width = 0.2, position = position_dodge(width = 0.4)) +
+  geom_jitter(data = llp_comparison_combined, aes(x = cells, y = single_recombinants, color = bxb1), position = position_dodge(width = 0.4), alpha = 0.4) +
+  geom_point(data = llp_comparison_summary, aes(x = cells, y = mean, color = bxb1), position = position_dodge(width = 0.4), size = 8, shape = 95) +
+  facet_grid(cols = vars(selection)) +
+  scale_shape_manual(values = c(1,16)) +
+  xlab(NULL) + ylab("Percent single recombinants")
+LLP_comparison_plot
+ggsave(file = "Plots/LLP_comparison_plot.pdf", LLP_comparison_plot, height = 2.25, width = 3)
+```
+
+## Flow cytometry of the various ACE2 expression constructs
+```{r}
+d200710_none <- read.csv(file = "Data/Flow_cytometry/constructs/200710_None.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200710", recombined_construct = "None", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200710_g627b <- read.csv(file = "Data/Flow_cytometry/constructs/200710_G627B.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200710", recombined_construct = "G627B", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200710_g698c <- read.csv(file = "Data/Flow_cytometry/constructs/200710_G698C.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200710", recombined_construct = "G698C", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200710_g714c <- read.csv(file = "Data/Flow_cytometry/constructs/200710_G714C.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200710", recombined_construct = "G714C", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200710_g719b <- read.csv(file = "Data/Flow_cytometry/constructs/200710_G719B.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200710", recombined_construct = "G719B", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200714_none <- read.csv(file = "Data/Flow_cytometry/constructs/200714_None.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200714", recombined_construct = "None", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200714_g627b <- read.csv(file = "Data/Flow_cytometry/constructs/200714_G627B.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200714", recombined_construct = "G627B", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200714_g698c <- read.csv(file = "Data/Flow_cytometry/constructs/200714_G698C.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200714", recombined_construct = "G698C", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200714_g714c <- read.csv(file = "Data/Flow_cytometry/constructs/200714_G714C.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200714", recombined_construct = "G714C", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200714_g719b <- read.csv(file = "Data/Flow_cytometry/constructs/200714_G719B.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200714", recombined_construct = "G719B", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200716_none <- read.csv(file = "Data/Flow_cytometry/constructs/200716_None.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200716", recombined_construct = "None", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200716_g627b <- read.csv(file = "Data/Flow_cytometry/constructs/200716_G627B.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200716", recombined_construct = "G627B", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200716_g698c <- read.csv(file = "Data/Flow_cytometry/constructs/200716_G698C.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200716", recombined_construct = "G698C", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200716_g714c <- read.csv(file = "Data/Flow_cytometry/constructs/200716_G714C.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200716", recombined_construct = "G714C", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200716_g719b <- read.csv(file = "Data/Flow_cytometry/constructs/200716_G719B.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200716", recombined_construct = "G719B", mfi_grn = GFP.A, mfi_red = mCherry.A)
+d200721_none <- read.csv(file = "Data/Flow_cytometry/constructs/200721_None.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200721", recombined_construct = "None", mfi_grn = B525.A, mfi_red = YG610.A, dox = "Dox")
+d200721_g627b <- read.csv(file = "Data/Flow_cytometry/constructs/200721_G627B.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200721", recombined_construct = "G627B", mfi_grn = B525.A, mfi_red = YG610.A, dox = "Dox")
+d200721_g698c <- read.csv(file = "Data/Flow_cytometry/constructs/200721_G698C.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200721", recombined_construct = "G698C", mfi_grn = B525.A, mfi_red = YG610.A, dox = "Dox")
+d200721_g714c <- read.csv(file = "Data/Flow_cytometry/constructs/200721_G714C.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200721", recombined_construct = "G714C", mfi_grn = B525.A, mfi_red = YG610.A, dox = "Dox")
+d200721_g719b <- read.csv(file = "Data/Flow_cytometry/constructs/200721_G719B.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200721", recombined_construct = "G719B", mfi_grn = B525.A, mfi_red = YG610.A, dox = "Dox")
+d200724_none <- read.csv(file = "Data/Flow_cytometry/constructs/200724_None.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200724", recombined_construct = "None", mfi_grn = B525.A, mfi_red = YG610.A)
+d200724_g627b <- read.csv(file = "Data/Flow_cytometry/constructs/200724_G627B.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200724", recombined_construct = "G627B", mfi_grn = B525.A, mfi_red = YG610.A)
+d200724_g698c <- read.csv(file = "Data/Flow_cytometry/constructs/200724_G698C.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200724", recombined_construct = "G698C", mfi_grn = B525.A, mfi_red = YG610.A)
+d200724_g714c <- read.csv(file = "Data/Flow_cytometry/constructs/200724_G714C.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200724", recombined_construct = "G714C", mfi_grn = B525.A, mfi_red = YG610.A)
+d200724_g719b <- read.csv(file = "Data/Flow_cytometry/constructs/200724_G719B.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200724", recombined_construct = "G719B", mfi_grn = B525.A, mfi_red = YG610.A)
+
+staining_columns <- c("date","recombined_construct","mfi_grn","mfi_red")
+
+staining_datapoints <- rbind(d200710_none[,staining_columns],d200710_g627b[,staining_columns],d200710_g698c[,staining_columns],d200710_g714c[,staining_columns],d200710_g719b[,staining_columns],
+                             d200714_none[,staining_columns],d200714_g627b[,staining_columns],d200714_g698c[,staining_columns],d200714_g714c[,staining_columns],d200714_g719b[,staining_columns],
+                             d200716_none[,staining_columns],d200716_g627b[,staining_columns],d200716_g698c[,staining_columns],d200716_g714c[,staining_columns],d200716_g719b[,staining_columns],
+                             d200721_none[,staining_columns],d200721_g627b[,staining_columns],d200721_g698c[,staining_columns],d200721_g714c[,staining_columns],d200721_g719b[,staining_columns],
+                             d200724_none[,staining_columns],d200724_g627b[,staining_columns],d200724_g698c[,staining_columns],d200724_g714c[,staining_columns],d200724_g719b[,staining_columns])
+
+## This part here is showing what the mCherry flow profiles look like between the Dox and NoDox conditions
+d200721_none_noDox <- read.csv(file = "Data/Flow_cytometry/constructs/200721_None_noDox.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200721", recombined_construct = "None", mfi_grn = B525.A, mfi_red = YG610.A, dox = "noDox")
+d200721_g627b_noDox <- read.csv(file = "Data/Flow_cytometry/constructs/200721_G627B_noDox.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200721", recombined_construct = "G627B", mfi_grn = B525.A, mfi_red = YG610.A, dox = "noDox")
+d200721_g698c_noDox <- read.csv(file = "Data/Flow_cytometry/constructs/200721_G698C_noDox.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200721", recombined_construct = "G698C", mfi_grn = B525.A, mfi_red = YG610.A, dox = "noDox")
+d200721_g714c_noDox <- read.csv(file = "Data/Flow_cytometry/constructs/200721_G714C_noDox.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200721", recombined_construct = "G714C", mfi_grn = B525.A, mfi_red = YG610.A, dox = "noDox")
+d200721_g719b_noDox <- read.csv(file = "Data/Flow_cytometry/constructs/200721_G719B_noDox.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200721", recombined_construct = "G719B", mfi_grn = B525.A, mfi_red = YG610.A, dox = "noDox")
+
+staining_columns2 <- c("date","recombined_construct","dox","mfi_grn","mfi_red")
+
+Dox_noDox_dataset <- rbind(d200721_none_noDox[,staining_columns2], d200721_none[,staining_columns2],
+                           d200721_g627b_noDox[,staining_columns2], d200721_g627b[,staining_columns2],
+                           d200721_g698c_noDox[,staining_columns2], d200721_g698c[,staining_columns2],
+                           d200721_g714c_noDox[,staining_columns2], d200721_g714c[,staining_columns2],
+                           d200721_g719b_noDox[,staining_columns2], d200721_g719b[,staining_columns2])
+Dox_noDox_dataset2 <- merge(Dox_noDox_dataset, recombined_construct_key[,c("recombined_construct","cell_label")], by = "recombined_construct") %>% filter(mfi_red >= 10)
+
+Dox_noDox_dataset2$cell_label <- factor(Dox_noDox_dataset2$cell_label, levels = c("None","ACE2","ACE2(IRES-mCherry)","ACE2-T2A-mCherry","ACE2-mCherry"))
+
+Dox_noDox_histogram_plot <- ggplot() + theme_bw() + 
+  theme(panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(), legend.position = "none", strip.text.y.right = element_text(angle = 0)) + 
+  scale_x_log10(expand = c(0,0.1), breaks = c(1,1e3,1e5)) + scale_y_continuous(breaks = c(0,1000,2000)) +
+  scale_fill_manual(values = c("black","orange")) + 
+  labs(x = "Red mean fluorescence intensity", y = "Number of cells") +
+  geom_histogram(data = Dox_noDox_dataset2, aes(x = mfi_red, fill = dox), bins = 100, alpha = 0.6, position="identity") +
+  facet_grid(rows = vars(cell_label))
+Dox_noDox_histogram_plot
+ggsave(file = "Plots/Dox_noDox_histogram_plot.pdf", Dox_noDox_histogram_plot, height = 3, width = 3)
+```
+
+```{r Example scatterplot comparing G698C red fluorescence and ACE2 expression}
+## Making a scatterplot comparing G698C red fluorescence and cell surface ACE2
+G698C_cell_scatterplot <- ggplot() + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank()) +
+  labs(x = "Red MFI", y = "Green MFI") +
+  scale_x_log10(limits = c(10,1e5)) + scale_y_log10(limits = c(10,1e5)) +
+  geom_hline(yintercept = 3e2, linetype = 2) + geom_vline(xintercept = 1e3, linetype = 2) +
+  geom_point(data = d200721_g698c, aes(x = mfi_red, y = mfi_grn), alpha = 0.01) +
+  geom_point(data = d200721_g698c_noDox, aes(x = mfi_red, y = mfi_grn), color = "orange", alpha = 0.01)
+G698C_cell_scatterplot
+ggsave(file = "Plots/G698C_cell_scatterplot.png", G698C_cell_scatterplot, height = 2, width = 3)
+```
+
+```{r Comparing red fluorescence and ACE2 expression across replicates}
+## The part below is figuring out how well the mCherry expression reports on ACE2 cell surface expression\
+staining_experiment_date_list <- unique(staining_datapoints$date)
+staining_experiment_sample_list <- unique(staining_datapoints$recombined_construct)
+
+staining_summary_frame <- data.frame("date" = rep(staining_experiment_date_list, each = 5),
+                                     "recombined_construct" = rep(staining_experiment_sample_list, 5))
+## I will be counting 1e3 as the cutoff for calling something green+ or red+
+staining_summary_frame$pct_red <- 0
+staining_summary_frame$pct_red_also_grn <- 0
+staining_summary_frame$cell_count <- 0
+staining_summary_frame$n <- 1
+
+for(x in 1:nrow(staining_summary_frame)){
+  temp_data <- staining_datapoints %>% filter(date == staining_summary_frame$date[x], recombined_construct == staining_summary_frame$recombined_construct[x])
+  staining_summary_frame$pct_red[x] <- sum(temp_data$mfi_red > 1e3)/nrow(temp_data) * 100
+  staining_summary_frame$pct_red_also_grn[x] <- sum(temp_data$mfi_red > 1e3 & temp_data$mfi_grn > 3e2)/sum(temp_data$mfi_red > 1e3) * 100
+  staining_summary_frame$cell_count[x] <- nrow(temp_data)
+}
+
+staining_summary_frame2 <- staining_summary_frame %>% filter(recombined_construct != "None") %>% group_by(recombined_construct) %>% summarize(mean_pct_red_also_grn = mean(pct_red_also_grn), sd_pct_red_also_grn = sd(pct_red_also_grn), n = sum(n), .groups = 'drop')
+staining_summary_frame2$upper_ci <- staining_summary_frame2$mean_pct_red_also_grn + staining_summary_frame2$sd_pct_red_also_grn/sqrt(staining_summary_frame2$n - 1) * 1.96
+staining_summary_frame2$lower_ci <- staining_summary_frame2$mean_pct_red_also_grn - staining_summary_frame2$sd_pct_red_also_grn/sqrt(staining_summary_frame2$n - 1) * 1.96
+
+staining_summary_frame <- merge(staining_summary_frame, recombined_construct_key[,c("recombined_construct","cell_label")], by = "recombined_construct")
+staining_summary_frame$cell_label <- factor(staining_summary_frame$cell_label, levels = c("None","ACE2","ACE2(IRES-mCherry)","ACE2-T2A-mCherry","ACE2-mCherry"))
+
+staining_summary_frame2 <- merge(staining_summary_frame2, recombined_construct_key[,c("recombined_construct","cell_label")], by = "recombined_construct")
+staining_summary_frame2$cell_label <- factor(staining_summary_frame2$cell_label, levels = c("None","ACE2","ACE2(IRES-mCherry)","ACE2-T2A-mCherry","ACE2-mCherry"))
+
+Construct_mCherry_and_stain <- ggplot() + theme_bw() + scale_y_continuous(limits = c(0,100), expand = c(0,0.1)) +
+  theme(panel.grid.minor.y = element_blank(), panel.grid.major.x = element_blank(), axis.text.x = element_text(angle = -90, hjust = 0, vjust = 0.5)) + 
+  labs(x = element_blank(), y = "Green MFI") +
+  geom_hline(yintercept = 0, size = 2) +
+  geom_errorbar(data = staining_summary_frame2, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci), alpha = 0.2, width = 0.2, position = position_dodge(width = 0.4)) +
+  geom_jitter(data = subset(staining_summary_frame, cell_label != "None"), aes(x = cell_label, y = pct_red_also_grn), position = position_dodge(width = 0.4), alpha = 0.4) +
+  geom_point(data = staining_summary_frame2, aes(x = cell_label, y = mean_pct_red_also_grn), position = position_dodge(width = 0.4), size = 8, shape = 95)
+Construct_mCherry_and_stain
+ggsave(file = "Plots/Construct_mCherry_and_stain.pdf", Construct_mCherry_and_stain, height = 2.5, width = 1.5)
+```
+
+```{r Look at SARS2 RBD staining of constructs}
+staining_initial_constructs <- staining_data %>% filter(recombined_construct %in% c("None","G627B","G698C","G714C","G719B"))
+for(x in 1:nrow(staining_initial_constructs)){if(staining_initial_constructs$recombined_construct[x] == "None"){staining_initial_constructs$mfi_grn[x] <- staining_initial_constructs$mfi_grn[x]}}
+
+staining_initial_constructs$count <- 1
+staining_initial_constructs$log10_mfi_grn <- log10(staining_initial_constructs$mfi_grn)
+
+staining_initial_constructs_summary <- staining_initial_constructs %>% group_by(cell_label, pseudovirus_inoc) %>% summarize(mean_log10 = mean(log10_mfi_grn), sd_log10 = sd(log10_mfi_grn), n = sum(count), .groups = 'drop')
+staining_initial_constructs_summary$geomean <- 10^staining_initial_constructs_summary$mean_log10
+staining_initial_constructs_summary$upper_ci <- 10^(staining_initial_constructs_summary$mean_log10 + staining_initial_constructs_summary$sd_log10/sqrt(staining_initial_constructs_summary$n - 1)*1.96)
+staining_initial_constructs_summary$lower_ci <- 10^(staining_initial_constructs_summary$mean_log10 - staining_initial_constructs_summary$sd_log10/sqrt(staining_initial_constructs_summary$n - 1)*1.96)
+
+staining_initial_constructs$cell_label <- factor(staining_initial_constructs$cell_label, levels = c("None","ACE2(IRES-mCherry)","ACE2","ACE2-T2A-mCherry","ACE2-mCherry"))
+staining_initial_constructs_summary$cell_label <- factor(staining_initial_constructs_summary$cell_label, levels = c("None","ACE2(IRES-mCherry)","ACE2","ACE2-T2A-mCherry","ACE2-mCherry"))
+
+Initial_construct_staining <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.y = element_blank(), axis.text.x = element_text(angle = 0, hjust = 1, vjust = 1)) + coord_flip() + scale_x_discrete(limits = rev(levels(staining_initial_constructs_summary$cell_label))) +
+  labs(x = element_blank(), y = "Green MFI") +
+  scale_y_log10() + scale_color_manual(values = c("black","orange")) +
+  geom_errorbar(data = staining_initial_constructs_summary, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, color = pseudovirus_inoc), alpha = 0.2, width = 0.2, position = position_dodge(width = 0.4)) +
+  geom_jitter(data = staining_initial_constructs, aes(x = cell_label, y = mfi_grn, color = pseudovirus_inoc), position = position_dodge(width = 0.4), alpha = 0.4) +
+  geom_point(data = staining_initial_constructs_summary, aes(x = cell_label, y = geomean, color = pseudovirus_inoc), position = position_dodge(width = 0.4), size = 8, shape = 124)
+Initial_construct_staining
+ggsave(file = "Plots/Initial_construct_staining.pdf", Initial_construct_staining, height = 2, width = 4)
+
+
+staining_initial_constructs_mini <- subset(staining_initial_constructs, cell_label %in% c("None","ACE2"))
+staining_initial_constructs_summary_mini <- subset(staining_initial_constructs_summary, cell_label %in% c("None","ACE2"))
+
+Initial_construct_staining_small <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.y = element_blank(), axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 1), legend.position = "none") + coord_flip() + scale_x_discrete(limits = rev(c("None","ACE2"))) +
+  labs(x = element_blank(), y = "Red MFI") +
+  scale_y_log10() + scale_color_manual(values = c("black","orange")) +
+  geom_errorbar(data = staining_initial_constructs_summary_mini, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, color = pseudovirus_inoc), alpha = 0.2, width = 0.2, position = position_dodge(width = 0.6)) +
+  geom_jitter(data = staining_initial_constructs_mini, aes(x = cell_label, y = mfi_grn, color = pseudovirus_inoc), position = position_dodge(width = 0.6), alpha = 0.4) +
+  geom_point(data = staining_initial_constructs_summary_mini, aes(x = cell_label, y = geomean, color = pseudovirus_inoc), position = position_dodge(width = 0.6), size = 8, shape = 124)
+Initial_construct_staining_small
+ggsave(file = "Plots/Initial_construct_staining_mini.pdf", Initial_construct_staining_small, height = 1.65, width = 1.2)
+```
+
+## Establishing the linear range of the GFP-reporter infection assay
+```{r Estalishing the linear range of the assay}
+dilution_data <- infection_data %>% filter(expt == "Dilutions")
+dilution_expt_dates <- dilution_data %>% group_by(date, pseudovirus_env) %>% summarize(date = unique(date), pseudovirus_env = unique(pseudovirus_env), .groups = "drop")
+
+dilution_expt_dates <- dilution_data %>% group_by(date, pseudovirus_env) %>% mutate(closest_to_pt1 = abs(moi - 0.03)) %>% slice_min(closest_to_pt1, n = 1)
+dilution_expt_dates$fold_dilution_to_moi_pt1 <- dilution_expt_dates$moi / 0.1 ## May not need this
+
+dilution_expt_dates$normalized_dilution <- 0
+for(x in 1:nrow(dilution_data)){
+  dilution_data$normalized_dilution[x] <- log10(as.numeric(as.numeric(dilution_data$pseudovirus_inoc[x]) / as.numeric(dilution_expt_dates[dilution_expt_dates$date == dilution_data$date[x] & dilution_expt_dates$pseudovirus_env == dilution_data$pseudovirus_env[x], "pseudovirus_inoc"]) * (dilution_expt_dates[dilution_expt_dates$date == dilution_data$date[x] & dilution_expt_dates$pseudovirus_env == dilution_data$pseudovirus_env[x], "moi"] / 0.2)))
+}
+dilution_data$date <- factor(dilution_data$date)
+
+Dilution_plot2 <- ggplot() + theme_bw() + theme(legend.position = "none", panel.grid.minor = element_blank()) + 
+  scale_x_continuous(limits = c(-3,1)) +
+  scale_y_log10(limits = c(2e-2,100), breaks = c(0.001,0.01,0.1,1,10,100), expand = c(0,0)) +
+  scale_color_manual(values = virus_colors) +
+  xlab("Log10 dilution") + ylab("Percent GFP+") +
+  geom_hline(yintercept = c(0.1,30), linetype = 2) +
+  geom_abline(slope = 1.5, intercept = 1.9, alpha = 0.2, size = 6) +
+  geom_line(data = dilution_data, aes(x = normalized_dilution, y = pct_grn_gvn_red, linetype = date), alpha = 0.4, size = 1, color = "darkgreen") +
+  geom_point(data = dilution_data, aes(x = normalized_dilution, y = pct_grn_gvn_red, shape = date), alpha = 0.4, size = 2, color = "darkgreen")
+Dilution_plot2
+ggsave(file = "Plots/Dilution_plot.pdf", Dilution_plot2, height = 1.8, width = 2)
+```
+
+
+```{r Testing infectivity of the four constructs}
+constructs_combined <- infection_data %>% filter(expt == "Constructs") %>% mutate(moi = -log(1-pct_grn/100))
+constructs_combined[constructs_combined$recombined_construct == "none","recombined_construct"] <- "None"
+
+#for(x in 1:nrow(constructs_combined)){constructs_combined$moi[x] <- uniroot(moi_backcalc_fxn , y= constructs_combined$pct_grn[x] / 100, lower=0, upper=4)$root} #backcalc MOI
+
+constructs_combined_summary <- constructs_combined %>% group_by(date, recombined_construct, pseudovirus_env) %>% summarize(moi = mean(moi), sd = sd(moi), .groups = "drop")
+
+constructs_combined_summary2 <- merge(constructs_combined_summary, recombined_construct_key, by = "recombined_construct")  ## ALTERED THIS RECENTLY
+
+for(x in 1:nrow(constructs_combined_summary2)){constructs_combined_summary2$scaled_infection[x] <- constructs_combined_summary2$moi[x]/(constructs_combined_summary2[constructs_combined_summary2$recombined_construct == "None" & constructs_combined_summary2$pseudovirus_env ==  constructs_combined_summary2$pseudovirus_env[x] & constructs_combined_summary2$date ==  constructs_combined_summary2$date[x],"moi"])}
+
+constructs_combined_summary2$cell_label <- factor(constructs_combined_summary2$cell_label, levels = c("None","ACE2","ACE2(IRES-mCherry)","ACE2-T2A-mCherry","ACE2-mCherry"))
+
+constructs_combined_summary2$log10_scaled_infection <- log10(constructs_combined_summary2$scaled_infection)
+constructs_combined_summary2$count <- 1
+
+constructs_combined_summary3 <- constructs_combined_summary2 %>% group_by(cell_label, pseudovirus_env) %>% summarize(log10_mean = mean(log10_scaled_infection), log10_sd = sd(log10_scaled_infection), n = sum(count), .groups = "drop")
+constructs_combined_summary3$log10_upper_ci <- constructs_combined_summary3$log10_mean + constructs_combined_summary3$log10_sd/sqrt(constructs_combined_summary3$n - 1) * 1.96
+constructs_combined_summary3$log10_lower_ci <- constructs_combined_summary3$log10_mean - constructs_combined_summary3$log10_sd/sqrt(constructs_combined_summary3$n - 1) * 1.96
+constructs_combined_summary3$mean <- 10^constructs_combined_summary3$log10_mean
+constructs_combined_summary3$upper_ci <- 10^constructs_combined_summary3$log10_upper_ci
+constructs_combined_summary3$lower_ci <- 10^constructs_combined_summary3$log10_lower_ci
+constructs_combined_summary2$pseudovirus_env = factor(constructs_combined_summary2$pseudovirus_env, levels = c("VSVG","SARS1","SARS2"))
+constructs_combined_summary3$pseudovirus_env = factor(constructs_combined_summary3$pseudovirus_env, levels = c("VSVG","SARS1","SARS2"))
+
+Construct_comparison <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position = "none", plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values = virus_colors) +
+  scale_y_log10(limits = c(0.5,120)) + 
+  labs(x = element_blank(), y = "Fold infection") + 
+  geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) +
+  geom_errorbar(data = constructs_combined_summary3, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, group = pseudovirus_env), alpha = 0.4, width = 0.4, position = position_dodge(width = 0.4)) +
+  geom_jitter(data = constructs_combined_summary2, aes(x = cell_label, y = scaled_infection, color = pseudovirus_env), position = position_dodge(width = 0.4), alpha = 0.4) +
+  geom_point(data = constructs_combined_summary3, aes(x = cell_label, y = mean, color = pseudovirus_env), position = position_dodge(width = 0.4), size = 6, shape = 95)
+Construct_comparison
+ggsave(file = "Plots/Construct_comparison.pdf", Construct_comparison, height = 2, width = 3)
+
+constructs_combined_summary2_mini <- subset(constructs_combined_summary2, cell_label %in% c("None","ACE2-IRES-mCherry-H2A"))
+constructs_combined_summary3_mini <- subset(constructs_combined_summary3, cell_label %in% c("None","ACE2-IRES-mCherry-H2A"))
+
+Construct_comparison_mini <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position = "none", plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values = virus_colors) +
+  scale_y_log10(limits = c(0.5,120)) + 
+  labs(x = element_blank(), y = "Fold infection") + 
+  geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) +
+  geom_errorbar(data = constructs_combined_summary3_mini, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, group = pseudovirus_env), alpha = 0.4, width = 0.4, position = position_dodge(width = 0.6)) +
+  geom_jitter(data = constructs_combined_summary2_mini, aes(x = cell_label, y = scaled_infection, color = pseudovirus_env), position = position_dodge(width = 0.6), alpha = 0.4) +
+  geom_point(data = constructs_combined_summary3_mini, aes(x = cell_label, y = mean, color = pseudovirus_env), position = position_dodge(width = 0.6), size = 6, shape = 95)
+ggsave(file = "Plots/Construct_comparison_mini.pdf", Construct_comparison_mini, height = 2, width = 2.5)
+```
+
+
+## Variants with the consensus Kozak
+```{r Staining for variants with consensus Kozak, error = F, warning = F}
+staining_variants <- staining_data %>% filter(recombined_construct %in% c("G758A", "G698C", "G734A", "G735A"))
+for(x in 1:nrow(staining_variants)){if(staining_variants$recombined_construct[x] == "None"){staining_variants$mfi_grn_gvn_red[x] <- staining_variants$mfi_grn[x]}}
+
+staining_variants$count <- 1
+staining_variants$log10_mfi_grn_gvn_red <- log10(staining_variants$mfi_grn_gvn_red)
+
+staining_variants_summary <- staining_variants %>% group_by(cell_label) %>% summarize(mean_log10 = mean(log10_mfi_grn_gvn_red), sd_log10 = sd(log10_mfi_grn_gvn_red), n = sum(count), .groups = 'drop')
+staining_variants_summary$geomean <- 10^staining_variants_summary$mean_log10
+staining_variants_summary$upper_ci <- 10^(staining_variants_summary$mean_log10 + staining_variants_summary$sd_log10/sqrt(staining_variants_summary$n - 1)*1.96)
+staining_variants_summary$lower_ci <- 10^(staining_variants_summary$mean_log10 - staining_variants_summary$sd_log10/sqrt(staining_variants_summary$n - 1)*1.96)
+
+staining_variants$cell_label <- factor(staining_variants$cell_label, levels = c("ACE2(dEcto)", "ACE2",  "ACE2-K31D", "ACE2-K353D"))
+staining_variants_summary$cell_label <- factor(staining_variants_summary$cell_label, levels = c("ACE2(dEcto)","ACE2", "ACE2-K31D", "ACE2-K353D"))
+
+Variants_staining <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) + 
+  labs(x = element_blank(), y = "Green MFI") +
+  scale_y_log10() +
+  geom_errorbar(data = staining_variants_summary, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci), alpha = 0.4, width = 0.2, position = position_dodge(width = 0.4)) +
+  geom_jitter(data = staining_variants, aes(x = cell_label, y = mfi_grn_gvn_red), position = position_dodge(width = 0.4), alpha = 0.4) +
+  geom_point(data = staining_variants_summary, aes(x = cell_label, y = geomean), position = position_dodge(width = 0.4), size = 8, shape = 95)
+Variants_staining
+ggsave(file = "Plots/Variants_staining_plot.pdf", Variants_staining, height = 1.8, width = 1.8)
+```
+
+## Seeing how the variants affect entry and infection
+```{r Seeing how the kozaks alter infection, error = FALSE}
+kozaks_combined <- infection_data %>% filter(expt == "Kozaks" & pseudovirus_inoc != 0 & recombined_construct != "None" & date != "200706") %>% filter(recombined_construct %in% c("None", "G758A", "G698C", "G734A", "G735A"))
+kozaks_combined <- merge(kozaks_combined, recombined_construct_key, all.x = T)
+kozaks_combined$pseudovirus_env = factor(kozaks_combined$pseudovirus_env, levels = c("VSVG","SARS1","SARS2"))
+
+cell_label2 <- data.frame(cell_label = c("ACE2","ACE2(dEcto)","ACE2-K31D","ACE2-K353D","ACE2(low)","ACE2(low)-K31D","ACE2(low)-K353D"),
+cell_label2 = c("ACE2","ACE2(dEcto)","ACE2-K31D","ACE2-K353D","ACE2","ACE2-K31D","ACE2-K353D"))
+
+# ACE2 variants with consensus kozak
+kozaks_combined_consensus <- kozaks_combined %>% filter(cell_label %in% c("ACE2","ACE2(dEcto)","ACE2-K31D","ACE2-K353D"))
+kozaks_combined_consensus <- merge(kozaks_combined_consensus, cell_label2, by = "cell_label")
+
+for(x in 1:nrow(kozaks_combined_consensus)){kozaks_combined_consensus$scaled_infection[x] <- kozaks_combined_consensus$moi[x]/(kozaks_combined_consensus[kozaks_combined_consensus$recombined_construct == "G698C" & kozaks_combined_consensus$pseudovirus_env ==  kozaks_combined_consensus$pseudovirus_env[x] & kozaks_combined_consensus$pseudovirus_inoc ==  kozaks_combined_consensus$pseudovirus_inoc[x] & kozaks_combined_consensus$date ==  kozaks_combined_consensus$date[x],"moi"])}
+kozaks_combined_consensus$log_scaled_infection <- log10(kozaks_combined_consensus$scaled_infection)
+kozaks_combined_consensus$count <- 1
+kozaks_combined_consensus2 <- kozaks_combined_consensus %>% group_by(pseudovirus_env, cell_label) %>% summarize(geo_mean = mean(log_scaled_infection), sd = sd(log_scaled_infection), count = sum(count), cell_label2 = unique(cell_label2), .groups = 'drop')
+kozaks_combined_consensus2 <- merge(kozaks_combined_consensus2, recombined_construct_key, all.x = T)
+kozaks_combined_consensus2$cell_label2 <- factor(kozaks_combined_consensus2$cell_label2, levels = c("ACE2(dEcto)","ACE2","ACE2-K31D","ACE2-K353D"))
+kozaks_combined_consensus2$pseudovirus_env = factor(kozaks_combined_consensus2$pseudovirus_env, levels = c("VSVG","SARS1","SARS2"))
+kozaks_combined_consensus2$mean <- 10^kozaks_combined_consensus2$geo_mean
+kozaks_combined_consensus2$upper_ci <- 10^(kozaks_combined_consensus2$geo_mean + kozaks_combined_consensus2$sd/sqrt(kozaks_combined_consensus2$count-1)*1.96)
+kozaks_combined_consensus2$lower_ci <- 10^(kozaks_combined_consensus2$geo_mean - kozaks_combined_consensus2$sd/sqrt(kozaks_combined_consensus2$count-1)*1.96)
+
+Infectivity_consensus_variants_plot <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position = "none", plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values = virus_colors) +
+  scale_y_log10(limits = c(0.001,2)) + labs(x = NULL, y = "Fold infection") + 
+  geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) +
+  geom_errorbar(data = kozaks_combined_consensus2, aes(x = cell_label2, ymin = lower_ci, ymax = upper_ci, group = pseudovirus_env), alpha = 0.4, width = 0.4, position = position_dodge(width = 0.6)) +
+  geom_jitter(data = kozaks_combined_consensus, aes(x = cell_label2, y = scaled_infection, color = pseudovirus_env), position = position_dodge(width = 0.6), alpha = 0.4) +
+  geom_point(data = kozaks_combined_consensus2, aes(x = cell_label2, y = mean, color = pseudovirus_env), position = position_dodge(width = 0.6), size = 6, shape = 95)
+Infectivity_consensus_variants_plot
+ggsave(file = "Plots/Infectivity_consensus_variants_plot.pdf", Infectivity_consensus_variants_plot, height = 1.8, width = 2.2)
+
+```
+
+## Kozak data
+```{r Staining for the Kozak cells}
+staining_kozaks <- staining_data %>% filter(recombined_construct %in% c("None", "G758A", "G698C", "G734A", "G735A", "G755A", "G756A", "G757A"))
+for(x in 1:nrow(staining_kozaks)){if(staining_kozaks$recombined_construct[x] == "None"){staining_kozaks$mfi_grn_gvn_red[x] <- staining_kozaks$mfi_grn[x]}}
+
+staining_kozaks$count <- 1
+staining_kozaks$log10_mfi_grn_gvn_red <- log10(staining_kozaks$mfi_grn_gvn_red)
+
+staining_kozaks_summary <- staining_kozaks %>% group_by(cell_label) %>% summarize(mean_log10 = mean(log10_mfi_grn_gvn_red), sd_log10 = sd(log10_mfi_grn_gvn_red), n = sum(count), .groups = 'drop')
+staining_kozaks_summary$geomean <- 10^staining_kozaks_summary$mean_log10
+staining_kozaks_summary$upper_ci <- 10^(staining_kozaks_summary$mean_log10 + staining_kozaks_summary$sd_log10/sqrt(staining_kozaks_summary$n - 1)*1.96)
+staining_kozaks_summary$lower_ci <- 10^(staining_kozaks_summary$mean_log10 - staining_kozaks_summary$sd_log10/sqrt(staining_kozaks_summary$n - 1)*1.96)
+
+
+staining_kozaks_only <- staining_kozaks %>% filter(cell_label %in% c("ACE2(dEcto)","ACE2","ACE2(low)"))
+staining_kozaks_only$cell_label <- factor(staining_kozaks_only$cell_label, levels = c("ACE2(dEcto)","ACE2","ACE2(low)"))
+
+staining_kozaks_only_summary <- staining_kozaks_summary %>% filter(cell_label %in% c("ACE2(dEcto)","ACE2","ACE2(low)"))
+staining_kozaks_only_summary$cell_label <- factor(staining_kozaks_only_summary$cell_label, levels = c("ACE2(dEcto)","ACE2","ACE2(low)"))
+
+Staining_kozak_plot <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.x = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + 
+  labs(x = element_blank(), y = "Green MFI") +
+  scale_y_log10(limits = c(3e0,3e3)) +
+  geom_errorbar(data = staining_kozaks_only_summary, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci), alpha = 0.4, width = 0.2, position = position_dodge(width = 0.4)) +
+  geom_jitter(data = staining_kozaks_only, aes(x = cell_label, y = mfi_grn_gvn_red), position = position_dodge(width = 0.4), alpha = 0.4) +
+  geom_point(data = staining_kozaks_only_summary, aes(x = cell_label, y = geomean), position = position_dodge(width = 0.4), size = 8, shape = 95)
+Staining_kozak_plot
+ggsave(file = "Plots/Staining_kozak_plot.pdf", Staining_kozak_plot, height = 1.8*0.8, width = 1.4)
+
+
+staining_kozaks_variant <- staining_kozaks %>% filter(cell_label %in% c("ACE2(dEcto)", "ACE2(low)", "ACE2(low)-K31D", "ACE2(low)-K353D"))
+staining_kozaks_variant$cell_label <- factor(staining_kozaks_variant$cell_label, levels = c("ACE2(dEcto)", "ACE2(low)", "ACE2(low)-K31D", "ACE2(low)-K353D"))
+
+staining_kozaks_variant_only_summary <- staining_kozaks_summary %>% filter(cell_label %in% c("ACE2(dEcto)", "ACE2(low)", "ACE2(low)-K31D", "ACE2(low)-K353D"))
+staining_kozaks_variant_only_summary$cell_label <- factor(staining_kozaks_variant_only_summary$cell_label, levels = c("ACE2(dEcto)", "ACE2(low)", "ACE2(low)-K31D", "ACE2(low)-K353D"))
+
+Staining_kozaks_plot2 <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.x = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + 
+  labs(x = element_blank(), y = "Green MFI") +
+  scale_y_log10(limits = c(3e0,3e3)) +
+  geom_errorbar(data = staining_kozaks_variant_only_summary, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci), alpha = 0.4, width = 0.2, position = position_dodge(width = 0.4)) +
+  geom_jitter(data = staining_kozaks_variant, aes(x = cell_label, y = mfi_grn_gvn_red), position = position_dodge(width = 0.4), alpha = 0.4) +
+  geom_point(data = staining_kozaks_variant_only_summary, aes(x = cell_label, y = geomean), position = position_dodge(width = 0.4), size = 8, shape = 95)
+Staining_kozaks_plot2
+ggsave(file = "Plots/Staining_kozaks_plot2.pdf", Staining_kozaks_plot2, height = 2.2*0.8, width = 1.8)
+```
+
+```{r Seeing how the kozaks alter infection, error = FALSE}
+kozaks_combined <- infection_data %>% filter(expt == "Kozaks" & pseudovirus_inoc != 0 & recombined_construct != "None" & date != "200706")
+kozaks_combined$pseudovirus_env = factor(kozaks_combined$pseudovirus_env, levels = c("VSVG","SARS1","SARS2"))
+
+kozaks_combined_wts <- kozaks_combined %>% filter(cell_label %in% c("ACE2(dEcto)","ACE2","ACE2(low)"))
+kozaks_combined_wts$cell_label <- factor(kozaks_combined_wts$cell_label, levels = c("ACE2(dEcto)","ACE2", "ACE2(low)"))
+
+for(x in 1:nrow(kozaks_combined_wts)){kozaks_combined_wts$scaled_infection[x] <- kozaks_combined_wts$moi[x]/(kozaks_combined_wts[kozaks_combined_wts$recombined_construct == "G698C" & kozaks_combined_wts$pseudovirus_env ==  kozaks_combined_wts$pseudovirus_env[x] & kozaks_combined_wts$pseudovirus_inoc ==  kozaks_combined_wts$pseudovirus_inoc[x] & kozaks_combined_wts$date ==  kozaks_combined_wts$date[x],"moi"])}
+kozaks_combined_wts$log_scaled_infection <- log10(kozaks_combined_wts$scaled_infection)
+kozaks_combined_wts$count <- 1
+kozaks_combined_wts2 <- kozaks_combined_wts %>% group_by(pseudovirus_env, recombined_construct) %>% summarize(geo_mean = mean(log_scaled_infection), sd = sd(log_scaled_infection), count = sum(count), .groups = 'drop')
+kozaks_combined_wts2 <- merge(kozaks_combined_wts2, recombined_construct_key, all.x = T)
+kozaks_combined_wts2$cell_label <- factor(kozaks_combined_wts2$cell_label, levels = c("ACE2(dEcto)","ACE2", "ACE2-K31D","ACE2-K353D","ACE2(low)","ACE2(low)-K31D","ACE2(low)-K353D"))
+kozaks_combined_wts2$pseudovirus_env = factor(kozaks_combined_wts2$pseudovirus_env, levels = c("VSVG","SARS1","SARS2"))
+kozaks_combined_wts2$mean <- 10^kozaks_combined_wts2$geo_mean
+kozaks_combined_wts2$upper_ci <- 10^(kozaks_combined_wts2$geo_mean + kozaks_combined_wts2$sd/sqrt(kozaks_combined_wts2$count-1)*1.95)
+kozaks_combined_wts2$lower_ci <- 10^(kozaks_combined_wts2$geo_mean - kozaks_combined_wts2$sd/sqrt(kozaks_combined_wts2$count-1)*1.95)
+
+Kozak_infectivity_plot_wts <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), legend.position = "top") + scale_color_manual(values = virus_colors) +
+  scale_y_log10() + labs(x = NULL, y = "Fold infection") +
+  geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) +
+  geom_errorbar(data = kozaks_combined_wts2, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, group = pseudovirus_env), alpha = 0.4, width = 0.4, position = position_dodge(width = 0.4)) +
+  geom_jitter(data = kozaks_combined_wts, aes(x = cell_label, y = scaled_infection, color = pseudovirus_env), position = position_dodge(width = 0.4), alpha = 0.4) +
+  geom_point(data = kozaks_combined_wts2, aes(x = cell_label, y = mean, color = pseudovirus_env), position = position_dodge(width = 0.4), size = 6, shape = 95)
+Kozak_infectivity_plot_wts
+ggsave(file = "Plots/Kozak_infectivity_plot_wts.pdf", Kozak_infectivity_plot_wts, height = 2.5, width = 1.41)
+```
+
+```{r Seeing how the ACE2 variants affect entry, error = FALSE}
+## Now seeing how this may differ with a suboptimal Kozak
+kozaks_combined_suboptimal <- kozaks_combined %>% filter(cell_label %in% c("ACE2(low)","ACE2(dEcto)","ACE2(low)-K31D","ACE2(low)-K353D"))
+##kozaks_combined_suboptimal <- merge(kozaks_combined_suboptimal, recombined_construct_key, by = "cell_label")  ## No longer necessary
+
+for(x in 1:nrow(kozaks_combined_suboptimal)){kozaks_combined_suboptimal$scaled_infection[x] <- kozaks_combined_suboptimal$moi[x]/(kozaks_combined_suboptimal[kozaks_combined_suboptimal$recombined_construct == "G755A" & kozaks_combined_suboptimal$pseudovirus_env ==  kozaks_combined_suboptimal$pseudovirus_env[x] & kozaks_combined_suboptimal$pseudovirus_inoc ==  kozaks_combined_suboptimal$pseudovirus_inoc[x] & kozaks_combined_suboptimal$date ==  kozaks_combined_suboptimal$date[x],"moi"])}
+kozaks_combined_suboptimal$log_scaled_infection <- log10(kozaks_combined_suboptimal$scaled_infection)
+kozaks_combined_suboptimal$count <- 1
+kozaks_combined_suboptimal2 <- kozaks_combined_suboptimal %>% group_by(pseudovirus_env, cell_label) %>% summarize(geo_mean = mean(log_scaled_infection), sd = sd(log_scaled_infection), count = sum(count), cell_label = unique(cell_label), .groups = 'drop')
+#kozaks_combined_suboptimal2 <- merge(kozaks_combined_suboptimal2, recombined_construct_key, all.x = T)
+kozaks_combined_suboptimal2$cell_label <- factor(kozaks_combined_suboptimal2$cell_label, levels = c("ACE2(dEcto)","ACE2(low)","ACE2(low)-K31D","ACE2(low)-K353D"))
+kozaks_combined_suboptimal2$pseudovirus_env = factor(kozaks_combined_suboptimal2$pseudovirus_env, levels = c("VSVG","SARS1","SARS2"))
+kozaks_combined_suboptimal2$mean <- 10^kozaks_combined_suboptimal2$geo_mean
+kozaks_combined_suboptimal2$upper_ci <- 10^(kozaks_combined_suboptimal2$geo_mean + kozaks_combined_suboptimal2$sd/sqrt(kozaks_combined_suboptimal2$count-1)*1.96)
+kozaks_combined_suboptimal2$lower_ci <- 10^(kozaks_combined_suboptimal2$geo_mean - kozaks_combined_suboptimal2$sd/sqrt(kozaks_combined_suboptimal2$count-1)*1.96)
+
+Kozak_infectivity_plot_suboptimal <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), legend.position = "none", plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values = virus_colors) +
+  scale_y_log10(limits = c(0.01,2)) + labs(x = NULL, y = "Fold infection") +
+  geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) +
+  geom_errorbar(data = kozaks_combined_suboptimal2, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, group = pseudovirus_env), alpha = 0.4, width = 0.4, position = position_dodge(width = 0.4)) +
+  geom_jitter(data = kozaks_combined_suboptimal, aes(x = cell_label, y = scaled_infection, color = pseudovirus_env), position = position_dodge(width = 0.4), alpha = 0.4) +
+  geom_point(data = kozaks_combined_suboptimal2, aes(x = cell_label, y = mean, color = pseudovirus_env), position = position_dodge(width = 0.4), size = 6, shape = 95)
+Kozak_infectivity_plot_suboptimal
+
+ggsave(file = "Plots/Kozak_infectivity_plot_suboptimal.pdf", Kozak_infectivity_plot_suboptimal, height = 1.96, width = 1.8)
+```
+
+```{r Now test the ACE2 variant panel, error = FALSE, fig.width = 4, fig.height = 1.5}
+## Now seeing how this may differ with a suboptimal Kozak
+full_variant_panel_precursor <- rbind(infection_data %>% filter(expt == "ACE2_mut_panel" & pseudovirus_inoc != 0 & recombined_construct != "None" & date != "200706"),kozaks_combined_suboptimal <- kozaks_combined %>% filter(cell_label %in% c("ACE2(low)","ACE2(dEcto)","ACE2(low)-K31D","ACE2(low)-K353D")))
+full_variant_panel <- merge(full_variant_panel_precursor, recombined_construct_key, all.x = T) %>% filter(sequence_confirmed == "yes")
+
+for(x in 1:nrow(full_variant_panel)){
+  full_variant_panel$scaled_infection[x] <- full_variant_panel$moi[x]/(full_variant_panel[full_variant_panel$recombined_construct == "G755A" & full_variant_panel$pseudovirus_env == full_variant_panel$pseudovirus_env[x] & full_variant_panel$pseudovirus_inoc == full_variant_panel$pseudovirus_inoc[x] & full_variant_panel$date ==  full_variant_panel$date[x],"moi"])}
+
+full_variant_panel$log_scaled_infection <- log10(full_variant_panel$scaled_infection)
+full_variant_panel$count <- 1
+full_variant_panel <- merge(full_variant_panel, recombined_construct_key %>% filter(sequence_confirmed == "yes"), all.x = T)
+
+full_variant_panel2 <- full_variant_panel %>% group_by(pseudovirus_env, cell_label) %>% summarize(geo_mean = mean(log_scaled_infection), sd = sd(log_scaled_infection), count = sum(count), cell_label = unique(cell_label), .groups = 'drop')
+full_variant_panel2 <- merge(full_variant_panel2, recombined_construct_key %>% filter(sequence_confirmed == "yes"), all.x = T)
+
+full_variant_panel2$mean <- 10^full_variant_panel2$geo_mean
+full_variant_panel2$upper_ci <- 10^(full_variant_panel2$geo_mean + full_variant_panel2$sd/sqrt(full_variant_panel2$count-1)*1.96)
+full_variant_panel2$lower_ci <- 10^(full_variant_panel2$geo_mean - full_variant_panel2$sd/sqrt(full_variant_panel2$count-1)*1.96)
+
+full_variant_panel2$default_low_mean <- NA
+for(x in 1:nrow(full_variant_panel2)){
+  temp_pseudovirus_env <- full_variant_panel2$pseudovirus_env[x]
+  temp_control_low_mean <- full_variant_panel2[full_variant_panel2$pseudovirus_env == temp_pseudovirus_env & full_variant_panel2$cell_label == "ACE2(dEcto)","mean"]
+  if(full_variant_panel2$mean[x] < temp_control_low_mean){
+    full_variant_panel2$default_low_mean[x] <- temp_control_low_mean
+  }
+}
+
+# Turn into factors to change the order of sample on the plot
+full_variant_panel$cell_label <- factor(full_variant_panel$cell_label, levels = c("ACE2(dEcto)","ACE2(low)","ACE2(low)-I21N","ACE2(low)-I21V","ACE2(low)-E23K","ACE2(low)-K26E","ACE2(low)-K26R","ACE2(low)-T27A","ACE2(low)-K31D","ACE2(low)-E35K","ACE2(low)-D38H","ACE2(low)-Y41A","ACE2(low)-Q42R","ACE2(low)-M82I","ACE2(low)-Y83F","ACE2(low)-E329K","ACE2(low)-G352V","ACE2(low)-K353D","ACE2(low)-R357A","ACE2(low)-R357T"))
+full_variant_panel$pseudovirus_env = factor(full_variant_panel$pseudovirus_env, levels = c("VSVG","SARS1","SARS2"))
+
+full_variant_panel2$cell_label <- factor(full_variant_panel2$cell_label, levels = c("ACE2(dEcto)","ACE2(low)","ACE2(low)-I21N","ACE2(low)-I21V","ACE2(low)-E23K","ACE2(low)-K26E","ACE2(low)-K26R","ACE2(low)-T27A","ACE2(low)-K31D","ACE2(low)-E35K","ACE2(low)-D38H","ACE2(low)-Y41A","ACE2(low)-Q42R","ACE2(low)-M82I","ACE2(low)-Y83F","ACE2(low)-E329K","ACE2(low)-G352V","ACE2(low)-K353D","ACE2(low)-R357A","ACE2(low)-R357T"))
+full_variant_panel2$pseudovirus_env = factor(full_variant_panel2$pseudovirus_env, levels = c("VSVG","SARS1","SARS2"))
+
+Full_variant_panel_plot <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), plot.title = element_text(hjust = 0.5)) + #legend.position = "none"
+  #scale_color_manual(values = virus_colors) +
+  scale_y_log10(limits = c(0.01,3)) + labs(x = NULL, y = "Fold infection") +   #scale_y_log10(limits = c(0.035,4))
+  geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) +
+  geom_errorbar(data = full_variant_panel2, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, group = pseudovirus_env), alpha = 0.4, width = 0.4, position = position_dodge(width = 0.4)) +
+  geom_jitter(data = full_variant_panel, aes(x = cell_label, y = scaled_infection, color = pseudovirus_env), position = position_dodge(width = 0.4), alpha = 0.4) +
+  geom_point(data = full_variant_panel2, aes(x = cell_label, y = mean, color = pseudovirus_env), position = position_dodge(width = 0.4), size = 6, shape = 95)
+  #geom_point(data = full_variant_panel2, aes(x = cell_label, y = default_low_mean, color = pseudovirus_env), position = position_dodge(width = 0.4), size = 2, shape = 8)
+Full_variant_panel_plot
+
+ggsave(file = "Plots/Full_variant_panel_plot.pdf", Full_variant_panel_plot, height = 2.4, width = 1.8*5)
+```
+
+```{r Compare mutants with Procko data}
+procko_muts <- read.csv(file = "Data/Procko.csv", header = T, stringsAsFactors = F)
+procko_muts$variant <- paste(procko_muts$start,procko_muts$position,procko_muts$end,sep="")
+
+procko_muts$low <- (procko_muts$low_rep1 + procko_muts$low_rep2)/2
+procko_muts$high <- (procko_muts$high_rep1 + procko_muts$high_rep2)/2
+
+for(x in 1:nrow(full_variant_panel2)){
+  full_variant_panel2$variant[x] <- strsplit(as.character(full_variant_panel2$cell_label[x]),"-")[[1]][2]
+}
+full_variant_panel2$variant <- as.character(full_variant_panel2$variant)
+full_variant_panel3 <- full_variant_panel2 %>% filter(!is.na(variant) & pseudovirus_env == "SARS2")
+
+procko_muts2 <- merge(full_variant_panel3, procko_muts, by = "variant", all = T)
+
+
+planned_muts <- read.csv(file = "Data/Planned_muts.csv", header = T, stringsAsFactors = F)
+procko_muts3 <- merge(procko_muts2, planned_muts, by = "variant", all = T)
+
+procko_muts3$procko_mean <- (procko_muts3$high + -procko_muts3$low)/2
+
+procko_muts3b <- rbind(procko_muts3[1,],procko_muts3)
+procko_muts3b[1,"geo_mean"] <- 1; procko_muts3b[1,"mean"] <- 1; procko_muts3b[1,"variant"] <- "WT"
+
+## rescaling for easier interpretation
+procko_muts3b$procko_rescaled <- 2^procko_muts3b$procko_mean
+
+ggplot() + 
+  theme_bw() + 
+  scale_x_log10() + 
+  geom_point(data = procko_muts3b, aes(x = mean, y = -low)) + 
+  geom_text_repel(data = procko_muts3b, aes(x = mean, y = -low, label = variant))
+
+ggplot() + theme_bw() + 
+  scale_x_log10() + 
+  geom_point(data = procko_muts3b, aes(x = mean, y = high)) + 
+  geom_text_repel(data = procko_muts3b, aes(x = mean, y = high, label = variant))
+
+Monomeric_v_multimeric_ACE2_binding_plot <- ggplot() + theme_bw() + theme(panel.grid.minor = element_blank()) +
+  labs(x = "Monomeric binding (Procko)", y = "Oligomeric binding (Infection)") +
+  scale_x_log10(limits = c(0.2,5), breaks = c(0.3,1,3)) + scale_y_log10(limits = c(0.1,1.4)) + 
+  geom_abline(slope = 1, intercept = 0, alpha = 0.2, size = 5) +
+  geom_text_repel(data = procko_muts3b %>% filter(mean != 0), aes(x = procko_rescaled, y = mean, label = variant), color = "red", segment.colour = "orange") +
+  geom_text_repel(data = procko_muts3b %>% filter(mean < temp_control_low_mean), aes(x = procko_rescaled, y = default_low_mean, label = variant), color = "red", segment.colour = "orange") +
+  geom_point(data = procko_muts3b %>% filter(mean != 0), aes(x = procko_rescaled, y = mean)) + 
+  geom_point(data = procko_muts3b %>% filter(mean < temp_control_low_mean), aes(x = procko_rescaled, y = default_low_mean), shape = 8, color = "blue")
+Monomeric_v_multimeric_ACE2_binding_plot
+
+procko_density_plot <- ggplot() + theme_bw() + theme(panel.grid.minor = element_blank()) +
+  scale_x_log10(limits = c(0.2,5)) + scale_y_continuous(breaks = c(0,1,2)) +
+  labs(x = element_blank(), y = "Density") +
+  geom_density(data = procko_muts3b, aes(x = procko_rescaled))
+
+ggsave(file = "Plots/Monomeric_v_multimeric_ACE2_binding_plot.pdf", Monomeric_v_multimeric_ACE2_binding_plot, height = 3, width = 3)
+
+patchwork <- procko_density_plot / Monomeric_v_multimeric_ACE2_binding_plot
+patchwork + plot_layout(heights = c(1, 9))
+```
+
+```{r Bring in the GnomAD data and look at that}
+gnomad <- read.csv(file = "Data/gnomAD_v2.1.1_ENSG00000130234_2020_11_05_13_45_18.csv", header = T, stringsAsFactors = F) %>% filter(!(Annotation %in% c("splice_donor_variant","splice_donor")) & !(Protein.Consequence == "p.Met1?"))
+
+gnomad$variant <- substr(gnomad$Consequence,3,15)
+gnomad$position <- as.numeric(gsub("[A-Za-z]","",gnomad$variant))
+for(x in 1:nrow(gnomad)){
+  gnomad$start[x] <- to_single_notation(substr(gsub("[0-9]","",gnomad$variant[x]),1,3))
+  gnomad$end[x] <- to_single_notation(substr(gsub("[0-9]","",gnomad$variant[x]),4,6))
+  gnomad$variant[x] <- paste(gnomad$start[x],gnomad$position[x],gnomad$end[x],sep="")
+}
+
+colnames(gnomad)[colnames(gnomad) == "Allele.Count"] <- "gnomad_allele_count"
+colnames(gnomad)[colnames(gnomad) == "Allele.Number"] <- "gnomad_allele_number"
+gnomad$gnomad_frequency <- gnomad$gnomad_allele_count / gnomad$gnomad_allele_number
+approximate_wt_gnomad_frequency <- 1 - sum(gnomad$gnomad_frequency)
+
+gnomad_variant <- gnomad %>% group_by(variant, position) %>% summarize(gnomad_allele_count = sum(gnomad_allele_count), gnomad_allele_number = max(gnomad_allele_number), gnomad_frequency = sum(gnomad_frequency), .groups = "drop") %>% arrange(position)
+procko_muts3c <- merge(procko_muts3b, gnomad_variant[,c("variant","gnomad_allele_count","gnomad_allele_number","gnomad_frequency")], all.x = T) %>% filter(!is.na(mean) | !is.na(gnomad_allele_count))
+procko_muts3c[procko_muts3c$variant == "WT","gnomad_frequency"] <- approximate_wt_gnomad_frequency
+
+procko_muts3c_followup <- procko_muts3c[,c("variant","cell_label","mean","procko_rescaled","gnomad_frequency")] %>% arrange(desc(gnomad_frequency))
+
+ggplot() + theme_bw() + labs(x = "Allele frequency in GnomAD", y = "Oligomeric binding (infection)") +
+  scale_x_log10(limits = c(1e-6,1)) + scale_y_log10(limits = c(0.17,1.3)) + 
+  geom_text_repel(data = procko_muts3c, aes(x = gnomad_frequency, y = mean, label = variant), color = "red", segment.colour = "orange") +
+  geom_point(data = procko_muts3c, aes(x = gnomad_frequency, y = mean))
+```

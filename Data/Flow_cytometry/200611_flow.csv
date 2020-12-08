@@ -1,0 +1,7 @@
+date,tube_number,tube_id,expt,cell_bkgd,recombined_construct,plate_well,cell_number,pseudovirus_env,pseudovirus_vec,pseudovirus_inoc,e64d_nM,camostat_nM,live_singlets,pct_grn,pct_red,pct_grn_gvn_red,pct_nir,pct_grn_gvn_nir,mfi_grn,mfi_grn_gvn_red,pct_grn_gvn_nir,comment
+200611,1,Sample,Envelopes,G532Ac3,G627B,24-well,80000,SARS1,G70C,1400,0,0,144210,82.8,69.2,95.9,NA,NA,NA,NA,NA,NA
+200611,2,Sample1,Envelopes,G532Ac3,G627B,24-well,80000,SARS2,G70C,1400,0,0,153934,31,70.7,37.8,NA,NA,NA,NA,NA,NA
+200611,3,Sample2,Envelopes,G532Ac3,G627B,24-well,80000,G730,G70C,1400,0,0,161784,65,71.7,76.1,NA,NA,NA,NA,NA,NA
+200611,4,Sample3,Envelopes,G532Ac3,G627B,24-well,80000,G742,G70C,1400,0,0,167996,57.5,72.5,67,NA,NA,NA,NA,NA,NA
+200611,5,Sample4,Envelopes,G532Ac3,G627B,24-well,80000,NL63,G70C,1400,0,0,156854,1.25,73.2,1.49,NA,NA,NA,NA,NA,NA
+200611,6,Sample5,Envelopes,G532Ac3,G627B,24-well,80000,WIV1,G70C,1400,0,0,161230,14.5,73.2,17.4,NA,NA,NA,NA,NA,NA
