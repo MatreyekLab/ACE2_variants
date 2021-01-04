@@ -170,20 +170,21 @@ staining_summary_frame2$upper_ci <- staining_summary_frame2$mean_pct_red_also_gr
 staining_summary_frame2$lower_ci <- staining_summary_frame2$mean_pct_red_also_grn - staining_summary_frame2$sd_pct_red_also_grn/sqrt(staining_summary_frame2$n - 1) * 1.96
 
 staining_summary_frame <- merge(staining_summary_frame, recombined_construct_key[,c("recombined_construct","cell_label")], by = "recombined_construct")
-staining_summary_frame$cell_label <- factor(staining_summary_frame$cell_label, levels = c("None","ACE2","ACE2(IRES-mCherry)","ACE2-T2A-mCherry","ACE2-mCherry"))
+staining_summary_frame$cell_label <- factor(staining_summary_frame$cell_label, levels = rev(c("None","ACE2","ACE2(IRES-mCherry)","ACE2-T2A-mCherry","ACE2-mCherry")))
 
 staining_summary_frame2 <- merge(staining_summary_frame2, recombined_construct_key[,c("recombined_construct","cell_label")], by = "recombined_construct")
-staining_summary_frame2$cell_label <- factor(staining_summary_frame2$cell_label, levels = c("None","ACE2","ACE2(IRES-mCherry)","ACE2-T2A-mCherry","ACE2-mCherry"))
+staining_summary_frame2$cell_label <- factor(staining_summary_frame2$cell_label, levels = rev(c("None","ACE2","ACE2(IRES-mCherry)","ACE2-T2A-mCherry","ACE2-mCherry")))
 
-Construct_mCherry_and_stain <- ggplot() + theme_bw() + scale_y_continuous(limits = c(0,100), expand = c(0,0.1)) +
+Construct_mCherry_and_stain <- ggplot() + theme_bw() + coord_flip() + 
+  scale_y_continuous(limits = c(0,100), expand = c(0,0.1)) +
   theme(panel.grid.minor.y = element_blank(), panel.grid.major.x = element_blank(), axis.text.x = element_text(angle = -90, hjust = 0, vjust = 0.5)) + 
-  labs(x = element_blank(), y = "Green MFI") +
+  labs(x = element_blank(), y = "% Green+ within Red+ cells") +
   geom_hline(yintercept = 0, size = 2) +
   geom_errorbar(data = staining_summary_frame2, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci), alpha = 0.2, width = 0.2, position = position_dodge(width = 0.4)) +
   geom_jitter(data = subset(staining_summary_frame, cell_label != "None"), aes(x = cell_label, y = pct_red_also_grn), position = position_dodge(width = 0.4), alpha = 0.4) +
-  geom_point(data = staining_summary_frame2, aes(x = cell_label, y = mean_pct_red_also_grn), position = position_dodge(width = 0.4), size = 8, shape = 95)
+  geom_point(data = staining_summary_frame2, aes(x = cell_label, y = mean_pct_red_also_grn), position = position_dodge(width = 0.4), size = 8, shape = 108)
 Construct_mCherry_and_stain
-ggsave(file = "Plots/Construct_mCherry_and_stain.pdf", Construct_mCherry_and_stain, height = 2.5, width = 1.5)
+ggsave(file = "Plots/Construct_mCherry_and_stain.pdf", Construct_mCherry_and_stain, height = 2.8, width = 2.2)
 ```
 
 ```{r Look at SARS2 RBD staining of constructs}
@@ -198,8 +199,8 @@ staining_initial_constructs_summary$geomean <- 10^staining_initial_constructs_su
 staining_initial_constructs_summary$upper_ci <- 10^(staining_initial_constructs_summary$mean_log10 + staining_initial_constructs_summary$sd_log10/sqrt(staining_initial_constructs_summary$n - 1)*1.96)
 staining_initial_constructs_summary$lower_ci <- 10^(staining_initial_constructs_summary$mean_log10 - staining_initial_constructs_summary$sd_log10/sqrt(staining_initial_constructs_summary$n - 1)*1.96)
 
-staining_initial_constructs$cell_label <- factor(staining_initial_constructs$cell_label, levels = c("None","ACE2(IRES-mCherry)","ACE2","ACE2-T2A-mCherry","ACE2-mCherry"))
-staining_initial_constructs_summary$cell_label <- factor(staining_initial_constructs_summary$cell_label, levels = c("None","ACE2(IRES-mCherry)","ACE2","ACE2-T2A-mCherry","ACE2-mCherry"))
+staining_initial_constructs$cell_label <- factor(staining_initial_constructs$cell_label, levels = c("None","ACE2","ACE2(IRES-mCherry)","ACE2-T2A-mCherry","ACE2-mCherry"))
+staining_initial_constructs_summary$cell_label <- factor(staining_initial_constructs_summary$cell_label, levels = c("None","ACE2","ACE2(IRES-mCherry)","ACE2-T2A-mCherry","ACE2-mCherry"))
 
 Initial_construct_staining <- ggplot() + theme_bw() + 
   theme(panel.grid.major.y = element_blank(), axis.text.x = element_text(angle = 0, hjust = 1, vjust = 1)) + coord_flip() + scale_x_discrete(limits = rev(levels(staining_initial_constructs_summary$cell_label))) +
@@ -209,8 +210,7 @@ Initial_construct_staining <- ggplot() + theme_bw() +
   geom_jitter(data = staining_initial_constructs, aes(x = cell_label, y = mfi_grn, color = pseudovirus_inoc), position = position_dodge(width = 0.4), alpha = 0.4) +
   geom_point(data = staining_initial_constructs_summary, aes(x = cell_label, y = geomean, color = pseudovirus_inoc), position = position_dodge(width = 0.4), size = 8, shape = 124)
 Initial_construct_staining
-ggsave(file = "Plots/Initial_construct_staining.pdf", Initial_construct_staining, height = 2, width = 4)
-
+ggsave(file = "Plots/Initial_construct_staining.pdf", Initial_construct_staining, height = 3.2, width = 4)
 
 staining_initial_constructs_mini <- subset(staining_initial_constructs, cell_label %in% c("None","ACE2"))
 staining_initial_constructs_summary_mini <- subset(staining_initial_constructs_summary, cell_label %in% c("None","ACE2"))
@@ -505,6 +505,23 @@ Staining_kozaks_plot2
 ggsave(file = "Plots/Staining_kozaks_plot2.pdf", Staining_kozaks_plot2, height = 2.2*0.8, width = 1.8)
 
 ```
+
+```{r Histograms for staining of consensus and suboptimal Kozaks}
+flow_parental <- read.csv(file = "Data/Flow_cytometry/Kozaks/Parental_293T.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200727", recombined_construct = "None", mfi_grn = B525.A, mfi_red = YG610.A, dox = "Dox")
+flow_consensus <- read.csv(file = "Data/Flow_cytometry/Kozaks/Consensus_Kozak.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200727", recombined_construct = "Consensus", mfi_grn = B525.A, mfi_red = YG610.A, dox = "Dox")
+flow_suboptimal <- read.csv(file = "Data/Flow_cytometry/Kozaks/Suboptimal_Kozak.csv", header = T, stringsAsFactors = F) %>% mutate(date = "200727", recombined_construct = "Suboptimal", mfi_grn = B525.A, mfi_red = YG610.A, dox = "Dox")
+
+kozak_flow <- rbind(flow_parental[1:25000,], flow_consensus[1:25000,], flow_suboptimal[1:25000,])
+
+Kozak_flow_density_plot <- ggplot() + theme_bw() + theme(panel.grid.minor = element_blank()) + 
+  scale_x_log10() + scale_fill_manual(values = c("brown", "cyan", "magenta")) + 
+  labs(x = "Green MFI", y = "Cell density") +
+  geom_density(data = kozak_flow, aes(x = mfi_grn, fill = recombined_construct), alpha = 0.4)
+Kozak_flow_density_plot
+
+ggsave(file = "Plots/Kozak_flow_density_plot.pdf", Kozak_flow_density_plot, height = 1.25, width = 5)
+```
+
 
 ```{r Seeing how the kozaks alter infection, error = FALSE}
 kozaks_combined <- infection_data %>% filter((expt == "Kozaks" | expt == "ACE2_mut_panel")& pseudovirus_inoc != 0 & recombined_construct != "None" & date != "200706" & cell_label %in% c("ACE2(dEcto)","ACE2","ACE2(low)"))
