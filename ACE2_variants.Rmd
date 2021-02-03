@@ -25,7 +25,7 @@ recombined_construct_key <- read.csv(file = "Data/Construct_label_key.csv", head
 pseudovirus_label_key <- read.csv(file = "Data/Pseudovirus_label_key.csv", header = T, stringsAsFactors = F)
 
 staining_data <- merge(read.csv(file = "Data/Staining_data.csv", header = T, stringsAsFactors = F), recombined_construct_key, by = "recombined_construct") %>% arrange(date)
-infection_data <- merge(read.csv(file = "Data/Infection_data.csv", header = T, stringsAsFactors = F), recombined_construct_key, by = "recombined_construct") %>% arrange(date)
+infection_data <- merge(read.csv(file = "Data/Ace2_variant_infection_data.csv", header = T, stringsAsFactors = F), recombined_construct_key, by = "recombined_construct") %>% arrange(date)
 ```
 
 ## Introducing LLP Int-iCasp9-Blast
@@ -206,7 +206,7 @@ Initial_construct_staining <- ggplot() + theme_bw() +
   theme(panel.grid.major.y = element_blank(), axis.text.x = element_text(angle = 0, hjust = 1, vjust = 1)) + coord_flip() + scale_x_discrete(limits = rev(levels(staining_initial_constructs_summary$cell_label))) +
   labs(x = element_blank(), y = "Green MFI") +
   scale_y_log10() + scale_color_manual(values = c("black","orange")) +
-  geom_errorbar(data = staining_initial_constructs_summary, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, color = pseudovirus_inoc), alpha = 0.2, width = 0.2, position = position_dodge(width = 0.4)) +
+  geom_errorbar(data = staining_initial_constructs_summary, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, color = pseudovirus_inoc), alpha = 1, width = 0.4, position = position_dodge(width = 0.4)) +
   geom_jitter(data = staining_initial_constructs, aes(x = cell_label, y = mfi_grn, color = pseudovirus_inoc), position = position_dodge(width = 0.4), alpha = 0.4) +
   geom_point(data = staining_initial_constructs_summary, aes(x = cell_label, y = geomean, color = pseudovirus_inoc), position = position_dodge(width = 0.4), size = 8, shape = 124)
 Initial_construct_staining
@@ -219,7 +219,7 @@ Initial_construct_staining_small <- ggplot() + theme_bw() +
   theme(panel.grid.major.y = element_blank(), axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 1), legend.position = "none") + coord_flip() + scale_x_discrete(limits = rev(c("None","ACE2"))) +
   labs(x = element_blank(), y = "Red MFI") +
   scale_y_log10() + scale_color_manual(values = c("black","orange")) +
-  geom_errorbar(data = staining_initial_constructs_summary_mini, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, color = pseudovirus_inoc), alpha = 0.2, width = 0.2, position = position_dodge(width = 0.6)) +
+  geom_errorbar(data = staining_initial_constructs_summary_mini, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, color = pseudovirus_inoc), alpha = 1, width = 0.4, position = position_dodge(width = 0.6)) +
   geom_jitter(data = staining_initial_constructs_mini, aes(x = cell_label, y = mfi_grn, color = pseudovirus_inoc), position = position_dodge(width = 0.6), alpha = 0.4) +
   geom_point(data = staining_initial_constructs_summary_mini, aes(x = cell_label, y = geomean, color = pseudovirus_inoc), position = position_dodge(width = 0.6), size = 8, shape = 124)
 Initial_construct_staining_small
@@ -595,11 +595,11 @@ Kozak_infectivity_plot_suboptimal
 ggsave(file = "Plots/Kozak_infectivity_plot_suboptimal.pdf", Kozak_infectivity_plot_suboptimal, height = 2.225, width = 1.775)
 
 ## Report values for the manuscript
-paste("Fold difference in infection with SARS-CoV spike pseudoviruses between WT and K31D ACE2 behind a suboptimal Kozak:", round(kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS1","mean"]/ kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)-K31D" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS1","mean"],1))
+#paste("Fold difference in infection with SARS-CoV spike pseudoviruses between WT and K31D ACE2 behind a suboptimal Kozak:", round(kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS1","mean"]/ kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)-K31D" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS1","mean"],1))
 
 paste("Fold difference in infection with SARS-CoV spike pseudoviruses between WT and K353D ACE2 behind a suboptimal Kozak:", round(kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS1","mean"]/ kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)-K353D" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS1","mean"],1))
 
-paste("Fold difference in infection with SARS-CoV-2 spike pseudoviruses between WT and K31D ACE2 behind a suboptimal Kozak:", round(kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS2","mean"]/ kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)-K31D" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS2","mean"],1))
+#paste("Fold difference in infection with SARS-CoV-2 spike pseudoviruses between WT and K31D ACE2 behind a suboptimal Kozak:", round(kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS2","mean"]/ kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)-K31D" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS2","mean"],1))
 
 paste("Fold difference in infection with SARS-CoV-2 spike pseudoviruses between WT and K353D ACE2 behind a suboptimal Kozak:", round(kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS2","mean"]/ kozaks_combined_suboptimal2[kozaks_combined_suboptimal2$cell_label == "ACE2(low)-K353D" & kozaks_combined_suboptimal2$pseudovirus_env == "SARS2","mean"],1))
 ```
@@ -650,16 +650,16 @@ full_variant_panel2[full_variant_panel2$cell_label == "ACE2(low)","variant"] <- 
 full_variant_panel2[full_variant_panel2$cell_label == "ACE2(dEcto)","variant"] <- "NULL"
 
 # Turn into factors to change the order of sample on the plot
-full_variant_panel$cell_label <- factor(full_variant_panel$cell_label, levels = c("ACE2(dEcto)","ACE2(low)","ACE2(low)-I21N","ACE2(low)-I21V","ACE2(low)-E23K","ACE2(low)-K26E","ACE2(low)-K26R","ACE2(low)-T27A","ACE2(low)-K31D","ACE2(low)-E35K","ACE2(low)-D38H","ACE2(low)-Y41A","ACE2(low)-Q42R","ACE2(low)-M82I","ACE2(low)-Y83F","ACE2(low)-E329K","ACE2(low)-G352V","ACE2(low)-K353D","ACE2(low)-R357A","ACE2(low)-R357T"))
+full_variant_panel$cell_label <- factor(full_variant_panel$cell_label, levels = c("ACE2(dEcto)","ACE2(low)","ACE2(low)-I21N","ACE2(low)-I21V","ACE2(low)-E23K","ACE2(low)-K26E","ACE2(low)-K26R","ACE2(low)-T27A","ACE2(low)-K31D","ACE2(low)-E35K","ACE2(low)-E37K","ACE2(low)-D38H","ACE2(low)-Y41A","ACE2(low)-Q42R","ACE2(low)-M82I","ACE2(low)-Y83F","ACE2(low)-G326E","ACE2(low)-E329K","ACE2(low)-G352V","ACE2(low)-K353D","ACE2(low)-D355N","ACE2(low)-R357A","ACE2(low)-R357T"))
 full_variant_panel$pseudovirus_env = factor(full_variant_panel$pseudovirus_env, levels = c("VSVG","SARS1","SARS2"))
 
-full_variant_panel2$cell_label <- factor(full_variant_panel2$cell_label, levels = c("ACE2(dEcto)","ACE2(low)","ACE2(low)-I21N","ACE2(low)-I21V","ACE2(low)-E23K","ACE2(low)-K26E","ACE2(low)-K26R","ACE2(low)-T27A","ACE2(low)-K31D","ACE2(low)-E35K","ACE2(low)-D38H","ACE2(low)-Y41A","ACE2(low)-Q42R","ACE2(low)-M82I","ACE2(low)-Y83F","ACE2(low)-E329K","ACE2(low)-G352V","ACE2(low)-K353D","ACE2(low)-R357A","ACE2(low)-R357T"))
+full_variant_panel2$cell_label <- factor(full_variant_panel2$cell_label, levels = c("ACE2(dEcto)","ACE2(low)","ACE2(low)-I21N","ACE2(low)-I21V","ACE2(low)-E23K","ACE2(low)-K26E","ACE2(low)-K26R","ACE2(low)-T27A","ACE2(low)-K31D","ACE2(low)-E35K","ACE2(low)-E37K","ACE2(low)-D38H","ACE2(low)-Y41A","ACE2(low)-Q42R","ACE2(low)-M82I","ACE2(low)-Y83F","ACE2(low)-G326E","ACE2(low)-E329K","ACE2(low)-G352V","ACE2(low)-K353D","ACE2(low)-D355N","ACE2(low)-R357A","ACE2(low)-R357T"))
 full_variant_panel2$pseudovirus_env = factor(full_variant_panel2$pseudovirus_env, levels = c("VSVG","SARS1","SARS2"))
 
 Full_variant_panel_plot <- ggplot() + theme_bw() + 
   theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), plot.title = element_text(hjust = 0.5)) + #legend.position = "none"
   scale_color_manual(values = virus_colors) +
-  scale_y_log10(limits = c(0.01,3)) + labs(x = NULL, y = "Fold infection") +   #scale_y_log10(limits = c(0.035,4))
+  scale_y_log10(limits = c(0.005,3)) + labs(x = NULL, y = "Fold infection") +   #scale_y_log10(limits = c(0.035,4))
   geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) +
   geom_errorbar(data = full_variant_panel2, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, group = pseudovirus_env), alpha = 0.4, width = 0.4, position = position_dodge(width = 0.4)) +
   geom_jitter(data = full_variant_panel, aes(x = cell_label, y = scaled_infection, color = pseudovirus_env), position = position_dodge(width = 0.4), alpha = 0.4) +
@@ -683,29 +683,33 @@ for(x in 1:nrow(full_variant_t_test)){
   temp_subset <- full_variant_panel_no_control %>% filter(cell_label == temp_cell_label & pseudovirus_env == temp_pseudovirus_env)
   temp_p_value <- round(t.test(temp_subset$log_scaled_infection,rep(0,nrow(temp_subset)), alternative = "two.sided")$p.value,4)
   full_variant_t_test$p_value[x] <- temp_p_value
-  if(temp_p_value <= full_variant_t_test_sig_threshold){full_variant_t_test$significant[x] <- "yes"}
 }
+full_variant_t_test$corrected_p_value <- p.adjust(full_variant_t_test$p_value, method = 'BH')
+
+full_variant_t_test[full_variant_t_test$corrected_p_value < 0.01,"significant"] <- "yes"
 ```
 
 ```{r Break down the variant panel into groups so it's easier to discuss}
 # E35K, predicted to disrupt a hydrogen bond with SARS-CoV-2 RBD, Q42R, Y83F and E329K, engineered to disrupt hydrogen bonds with SARS-CoV RBD, and D38H and Y41A, 
 
-panel1 <- c("ACE2(dEcto)","ACE2(low)", "ACE2(low)-I21N", "ACE2(low)-D38H", "ACE2(low)-Y41A", "ACE2(low)-Q42R", "ACE2(low)-Y83F", "ACE2(low)-E329K", "ACE2(low)-R357T")
+panel1 <- c("ACE2(dEcto)","ACE2(low)", "ACE2(low)-I21N", "ACE2(low)-D38H", "ACE2(low)-Y41A", "ACE2(low)-Q42R", "ACE2(low)-Y83F", "ACE2(low)-E329K", "ACE2(low)-R357A", "ACE2(low)-R357T")
 
 variant_panel1 <- full_variant_panel %>% filter(cell_label %in% panel1); variant_panel1$cell_label<- factor(variant_panel1$cell_label, levels = panel1) 
 variant_panel1b <- full_variant_panel2  %>% filter(cell_label %in% panel1); variant_panel1b$cell_label<- factor(variant_panel1b$cell_label, levels = panel1) 
+variant_panel1c <- merge(variant_panel1b, full_variant_t_test, by = c("cell_label","pseudovirus_env"))
 
 Variant_panel1_plot <- ggplot() + theme_bw() + 
   theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), plot.title = element_text(hjust = 0.5)) + #legend.position = "none"
   scale_color_manual(values = virus_colors) +
-  scale_y_log10(limits = c(0.01,3), expand = c(0,0)) + labs(x = NULL, y = "Fold infection") + 
+  scale_y_log10(limits = c(0.01,8), expand = c(0,0)) + labs(x = NULL, y = "Fold infection") + 
   geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) +
   geom_errorbar(data = variant_panel1b, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, group = pseudovirus_env), alpha = 0.4, width = 0.4, position = position_dodge(width = 0.5)) +
   geom_jitter(data = variant_panel1, aes(x = cell_label, y = scaled_infection, color = pseudovirus_env), position = position_dodge(width = 0.5), alpha = 0.4) +
-  geom_point(data = variant_panel1b, aes(x = cell_label, y = mean, color = pseudovirus_env), position = position_dodge(width = 0.5), size = 6, shape = 95)
+  geom_point(data = variant_panel1b, aes(x = cell_label, y = mean, color = pseudovirus_env), position = position_dodge(width = 0.5), size = 6, shape = 95) +
+  geom_point(data = variant_panel1c %>% filter(significant == "yes"), aes(x = cell_label, y = 6, color = pseudovirus_env), position = position_dodge(width = 0.5), size = 1, shape = 8)
 Variant_panel1_plot
 
-ggsave(file = "Plots/Variant_panel1_plot.pdf", Variant_panel1_plot, height = 2*0.95, width = (9*0.5 + 2))
+ggsave(file = "Plots/Variant_panel1_plot.pdf", Variant_panel1_plot, height = 2*0.95, width = (10*0.5 + 2.2))
 
 paste("Fold difference in infection with SARS-CoV spike pseudoviruses between WT and R357T ACE2 behind a suboptimal Kozak:", round(full_variant_panel2[full_variant_panel2$cell_label == "ACE2(low)" & full_variant_panel2$pseudovirus_env == "SARS1","mean"]/ full_variant_panel2[full_variant_panel2$cell_label == "ACE2(low)-R357T" & full_variant_panel2$pseudovirus_env == "SARS1","mean"],1))
 
@@ -755,25 +759,48 @@ full_variant_panel_combined$gnomad_frequency <- as.numeric(full_variant_panel_co
 ```{r Break down the variant panel into groups so it's easier to discuss}
 # c("ACE2(dEcto)","ACE2(low)","ACE2(low)-I21N","ACE2(low)-I21V","ACE2(low)-E23K","ACE2(low)-K26E","ACE2(low)-K26R","ACE2(low)-T27A","ACE2(low)-K31D","ACE2(low)-E35K","ACE2(low)-D38H","ACE2(low)-Y41A","ACE2(low)-Q42R","ACE2(low)-M82I","ACE2(low)-Y83F","ACE2(low)-E329K","ACE2(low)-G352V","ACE2(low)-K353D","ACE2(low)-R357A","ACE2(low)-R357T"))
 
-panel2 <- c("ACE2(low)-K26R", "ACE2(low)-M82I", "ACE2(low)-E35K", "ACE2(low)-I21V", "ACE2(low)-T27A", "ACE2(low)-G352V", "ACE2(low)-E23K", "ACE2(low)-K26E")
+panel2 <- c("ACE2(low)-K26R", "ACE2(low)-M82I", "ACE2(low)-E35K", "ACE2(low)-I21V", "ACE2(low)-T27A", "ACE2(low)-G352V", "ACE2(low)-E23K", "ACE2(low)-K26E", "ACE2(low)-D355N","ACE2(low)-E37K","ACE2(low)-G326E")
 
 variant_panel2 <- full_variant_panel %>% filter(cell_label %in% panel2)
 variant_panel2b <- full_variant_panel2  %>% filter(cell_label %in% panel2)
+variant_panel2c <- merge(variant_panel2b, full_variant_t_test, by = c("cell_label","pseudovirus_env"))
 
 Variant_panel2_plot <- ggplot() + theme_bw() + 
   theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), plot.title = element_text(hjust = 0.5)) + #legend.position = "none"
   scale_color_manual(values = virus_colors) +
-  scale_y_log10(limits = c(0.01,3), expand = c(0,0)) + labs(x = NULL, y = "Fold infection") + 
+  scale_y_log10(limits = c(0.01,8), expand = c(0,0)) + labs(x = NULL, y = "Fold infection") + 
   geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) +
   geom_errorbar(data = variant_panel2b, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, group = pseudovirus_env), alpha = 0.4, width = 0.4, position = position_dodge(width = 0.5)) +
   geom_jitter(data = variant_panel2, aes(x = cell_label, y = scaled_infection, color = pseudovirus_env), position = position_dodge(width = 0.5), alpha = 0.4) +
-  geom_point(data = variant_panel2b, aes(x = cell_label, y = mean, color = pseudovirus_env), position = position_dodge(width = 0.5), size = 6, shape = 95)
+  geom_point(data = variant_panel2b, aes(x = cell_label, y = mean, color = pseudovirus_env), position = position_dodge(width = 0.5), size = 6, shape = 95) +
+  geom_point(data = variant_panel2c %>% filter(significant == "yes"), aes(x = cell_label, y = 6, color = pseudovirus_env), position = position_dodge(width = 0.5), size = 1, shape = 8)
 Variant_panel2_plot
 
-ggsave(file = "Plots/Variant_panel2_plot.pdf", Variant_panel2_plot, height = 2*0.95, width = 8*0.5 + 2.02)
+ggsave(file = "Plots/Variant_panel2_plot.pdf", Variant_panel2_plot, height = 2*0.95, width = 11*0.5 + 2.02)
 
 paste("Fold difference in infection with SARS-CoV spike pseudoviruses between WT and G352V ACE2 behind a suboptimal Kozak:", round(full_variant_panel2[full_variant_panel2$cell_label == "ACE2(low)" & full_variant_panel2$pseudovirus_env == "SARS1","mean"]/ full_variant_panel2[full_variant_panel2$cell_label == "ACE2(low)-G352V" & full_variant_panel2$pseudovirus_env == "SARS1","mean"],1))
 ```
+
+```{r Compare SARS1 and SARS2 sensitivities}
+sars2_sars1_variant_comparison <- merge(full_variant_panel2 %>% filter(pseudovirus_env == "SARS2") %>% mutate(sars2 = mean) %>% select(variant, sars2), full_variant_panel2 %>% filter(pseudovirus_env == "SARS1") %>% mutate(sars1 = mean) %>% select(variant, sars1), by = "variant")
+
+sars2_sars1_variant_comparison[sars2_sars1_variant_comparison$variant == "NULL","variant"] <- "dEcto"
+
+sars2_sars1_variant_comparison_labels <- c("WT","I21N","M21I","E37K","K31D","K353D","dEcto","Y41A","R357T","R357A","D355N", "G352V", "M82I", "E329K")
+
+sars1_sars2_variant_scatterplot <- ggplot() + theme_bw() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), plot.title = element_text(hjust = 0.5)) + #legend.position = "none"
+  scale_color_manual(values = virus_colors) +
+  scale_x_log10(limits = c(0.01,3), expand = c(0,0)) + scale_y_log10(limits = c(0.03,2), expand = c(0,0)) +
+  labs(x = "Fold infection", y = "Fold infection") + 
+  geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) + geom_vline(xintercept = 1, linetype = 2, alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, alpha = 0.2, size = 5) +
+  geom_point(data = sars2_sars1_variant_comparison, aes(x = sars1, y = sars2)) +
+  geom_text_repel(data = sars2_sars1_variant_comparison %>% filter(variant %in% sars2_sars1_variant_comparison_labels), aes(x = sars1, y = sars2, label = variant), segment.colour = "orange", segment.alpha = 0.5, color = "red")
+sars1_sars2_variant_scatterplot
+ggsave(file = "Plots/Sars1_sars2_variant_scatterplot.pdf", sars1_sars2_variant_scatterplot, height = 3, width = 3)
+```
+
 
 ```{r Compare variants to Li/Farzan SARS-CoV data}
 li_data <- read.csv(file = "Data/2005_Li_Farzan_EmboJ.csv", header = T, stringsAsFactors = F)
@@ -785,8 +812,9 @@ Li_data_comparison_plot <- ggplot() + theme_bw() + theme(panel.grid.minor = elem
   geom_abline(slope = 1, intercept = 0, alpha = 0.2, size = 5) +
   geom_text_repel(data = li_data2, aes(x = frac_wt_binding, y = mean, label = variant), color = "red", segment.color = "orange", segment.alpha = 0.5, size = 3) + 
   geom_point(data = li_data2, aes(x = frac_wt_binding, y = mean))
+Li_data_comparison_plot
 
-ggsave(file = "Plots/Li_data_comparison_plot.pdf", Li_data_comparison_plot, height = 2.4, width = 2)
+ggsave(file = "Plots/Li_data_comparison_plot.pdf", Li_data_comparison_plot, height = 2, width = 2)
 
 ## Report out some values for the manuscript
 paste("The Pearson's R^2 is", round(cor(li_data2$frac_wt_binding, li_data2$mean, method = "pearson")^2,2))
@@ -800,60 +828,88 @@ procko_muts$low <- (procko_muts$low_rep1 + procko_muts$low_rep2)/2
 procko_muts$high <- (procko_muts$high_rep1 + procko_muts$high_rep2)/2
 
 procko_muts2 <- merge(full_variant_panel_combined %>% filter(pseudovirus_env == "SARS2"), procko_muts[,-which(names(procko_muts) %in% c("position"))], by = "variant", all = T)
-procko_muts2$procko_mean <- (procko_muts2$high + -procko_muts2$low)/2
-
 procko_muts2b <- rbind(procko_muts2[1,],procko_muts2)
 procko_muts2b[1,"geo_mean"] <- 1; procko_muts2b[1,"mean"] <- 1; procko_muts2b[1,"variant"] <- "WT"
 
 ## rescaling for easier interpretation
 procko_muts2b$procko_rescaled_low <- 2^-procko_muts2b$low
 procko_muts2b$procko_rescaled_high <- 2^procko_muts2b$high
-procko_muts2b$procko_rescaled_mean <- 2^procko_muts2b$procko_mean
+procko_muts2b_complete <- procko_muts2b %>% filter(!is.na(procko_rescaled_low) & !is.na(procko_rescaled_high) & !is.na(mean))
 
-ggplot() + 
-  theme_bw() + 
-  scale_y_log10() + 
-  geom_point(data = procko_muts2b, aes(x = -low, y = mean)) + 
-  geom_text_repel(data = procko_muts2b, aes(x = -low, y = mean, label = variant))
-
-ggplot() + theme_bw() + 
-  scale_y_log10() + 
-  geom_point(data = procko_muts2b, aes(x = high, y = mean)) + 
-  geom_text_repel(data = procko_muts2b, aes(x = high, y = mean, label = variant))
-
-procko_muts2b_complete <- procko_muts2b %>% filter(!is.na(procko_rescaled_mean) & !is.na(mean))
-
-Monomeric_v_multimeric_ACE2_binding_plot <- ggplot() + theme_bw() + theme(panel.grid.minor = element_blank()) +
+Monomeric_low_v_multimeric_ACE2_binding_plot <- ggplot() + theme_bw() + theme(panel.grid.minor = element_blank()) +
   labs(x = "Soluble RBD", y = "Infection") +
-  scale_x_log10(limits = c(0.1,5), breaks = c(0.1,0.3,1,3)) + scale_y_log10(limits = c(0.1,1.4)) + 
+  scale_x_log10(limits = c(0.1,5), breaks = c(0.1,0.3,1,3)) + scale_y_log10(limits = c(0.03,1.4)) + 
+  geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) + geom_vline(xintercept = 1, linetype = 2, alpha = 0.5) +
   geom_abline(slope = 1, intercept = 0, alpha = 0.2, size = 5) +
-  geom_text_repel(data = procko_muts2b_complete, aes(x = procko_rescaled_mean, y = mean, label = variant), color = "red", segment.colour = "orange", size = 3) +
-  geom_text_repel(data = procko_muts2b_complete %>% filter(mean < temp_control_low_mean), aes(x = procko_rescaled_mean, y = default_low_mean, label = variant), color = "red", segment.colour = "orange", size = 3) +
-  geom_segment(data = procko_muts2b_complete, aes(x = procko_rescaled_mean, xend = procko_rescaled_high, y = mean, yend = mean), color = "cyan", alpha = 0.2) + 
-  geom_segment(data = procko_muts2b_complete, aes(x = procko_rescaled_mean, xend = procko_rescaled_low, y = mean, yend = mean), color = "purple", alpha = 0.2) + 
-  geom_segment(data = procko_muts2b_complete %>% filter(mean < temp_control_low_mean), aes(x = procko_rescaled_mean, xend = procko_rescaled_high, y = default_low_mean, yend = default_low_mean), color = "cyan", alpha = 0.2) + 
-  geom_segment(data = procko_muts2b_complete %>% filter(mean < temp_control_low_mean), aes(x = procko_rescaled_mean, xend = procko_rescaled_low, y = default_low_mean, yend = default_low_mean), color = "purple", alpha = 0.5, alpha = 0.2) + 
-  geom_point(data = procko_muts2b_complete, aes(x = procko_rescaled_mean, y = mean)) + 
-  geom_point(data = procko_muts2b_complete, aes(x = procko_rescaled_low, y = mean), size = 0.5, color = "purple", alpha = 0.5) + 
-  geom_point(data = procko_muts2b_complete, aes(x = procko_rescaled_high, y = mean), size = 0.5, color = "cyan") +
-  geom_point(data = procko_muts2b_complete %>% filter(mean < temp_control_low_mean), aes(x = procko_rescaled_low, y = default_low_mean), size = 0.5, color = "purple", alpha = 0.2) + 
-  geom_point(data = procko_muts2b_complete %>% filter(mean < temp_control_low_mean), aes(x = procko_rescaled_high, y = default_low_mean), size = 0.5, color = "cyan", alpha = 0.2) +
-  geom_point(data = procko_muts2b_complete %>% filter(mean < temp_control_low_mean), aes(x = procko_rescaled_mean, y = default_low_mean), shape = 1, color = "black")
-Monomeric_v_multimeric_ACE2_binding_plot
+  geom_text_repel(data = procko_muts2b_complete, aes(x = procko_rescaled_low, y = mean, label = variant), color = "red", segment.colour = "orange", size = 3) +
+  geom_point(data = procko_muts2b_complete, aes(x = procko_rescaled_low, y = mean))
+Monomeric_low_v_multimeric_ACE2_binding_plot
+ggsave(file = "Plots/Monomeric_low_v_multimeric_ACE2_binding_plot.pdf", Monomeric_low_v_multimeric_ACE2_binding_plot, height = 2.9, width = 3)
 
-procko_density_plot <- ggplot() + theme_bw() + theme(panel.grid.minor = element_blank()) +
-  scale_x_log10(limits = c(0.2,5)) + scale_y_continuous(breaks = c(0,1,2)) +
-  labs(x = element_blank(), y = "Density") +
-  geom_density(data = procko_muts2b, aes(x = procko_rescaled_mean))
-
-ggsave(file = "Plots/Soluble_RBD_plot.pdf", Monomeric_v_multimeric_ACE2_binding_plot, height = 2.4, width = 3)
+Monomeric_high_v_multimeric_ACE2_binding_plot <- ggplot() + theme_bw() + theme(panel.grid.minor = element_blank()) +
+  labs(x = "Soluble RBD", y = "Infection") +
+  scale_x_log10(limits = c(0.1,5), breaks = c(0.1,0.3,1,3)) + scale_y_log10(limits = c(0.03,1.4)) + 
+  geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) + geom_vline(xintercept = 1, linetype = 2, alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, alpha = 0.2, size = 5) +
+  geom_text_repel(data = procko_muts2b_complete, aes(x = procko_rescaled_high, y = mean, label = variant), color = "red", segment.colour = "orange", size = 3) +
+  geom_point(data = procko_muts2b_complete, aes(x = procko_rescaled_high, y = mean))
+Monomeric_high_v_multimeric_ACE2_binding_plot
+ggsave(file = "Plots/Monomeric_high_v_multimeric_ACE2_binding_plot.pdf", Monomeric_high_v_multimeric_ACE2_binding_plot, height = 2.9, width = 3)
 
 ## Report out some values for the manuscript
 paste("n = ", nrow(procko_muts2b_complete))
 
-paste("The Pearson's R^2 is", round(cor(procko_muts2b_complete$procko_rescaled_mean, procko_muts2b_complete$mean, method = "pearson", use = "complete.obs")^2,2))
+paste("For the low data, the Pearson's R^2 is", round(cor(procko_muts2b_complete$procko_rescaled_low, procko_muts2b_complete$mean, method = "pearson", use = "complete.obs")^2,2))
 
-paste("The Pearson's p value is", round(cor.test(procko_muts2b_complete$procko_rescaled_mean,procko_muts2b_complete$mean, method = "pearson", use = "complete.obs")$p.value,2))
+paste("For the high data, the Pearson's R^2 is", round(cor(procko_muts2b_complete$procko_rescaled_high, procko_muts2b_complete$mean, method = "pearson", use = "complete.obs")^2,2))
 
-paste("The Spearman's R^2 is", round(cor(procko_muts2b_complete$procko_rescaled_mean, procko_muts2b_complete$mean, method = "spearman", use = "complete.obs")^2,2))
+paste("For the low data, the Pearson's p value is", round(cor.test(procko_muts2b_complete$procko_rescaled_low,procko_muts2b_complete$mean, method = "pearson", use = "complete.obs")$p.value,2))
+
+paste("For the high data, the Pearson's p value is", round(cor.test(procko_muts2b_complete$procko_rescaled_high,procko_muts2b_complete$mean, method = "pearson", use = "complete.obs")$p.value,2))
+
+paste("For the low data, the Spearman's R^2 is", round(cor(procko_muts2b_complete$procko_rescaled_low, procko_muts2b_complete$mean, method = "spearman", use = "complete.obs")^2,2))
+
+paste("For the high data, the Spearman's R^2 is", round(cor(procko_muts2b_complete$procko_rescaled_high, procko_muts2b_complete$mean, method = "spearman", use = "complete.obs")^2,2))
+
+paste("For the low data, the spearman's p value is", round(cor.test(procko_muts2b_complete$procko_rescaled_low,procko_muts2b_complete$mean, method = "spearman", use = "complete.obs")$p.value,2))
+
+paste("For the high data, the spearman's p value is", round(cor.test(procko_muts2b_complete$procko_rescaled_high,procko_muts2b_complete$mean, method = "spearman", use = "complete.obs")$p.value,2))
 ```
+
+```{r}
+n501y_precursor <- infection_data %>% filter(expt == "N501Y_expts")
+n501y_panel <- merge(n501y_precursor, recombined_construct_key, all.x = T) %>% filter(sequence_confirmed == "yes")
+
+for(x in 1:nrow(n501y_panel)){
+  temp_date <- n501y_panel$date[x]
+  temp_expt <- n501y_panel$expt[x]
+  temp_pseudovirus_env <- n501y_panel$pseudovirus_env[x]
+  temp_pseudovirus_inoc <- n501y_panel$pseudovirus_inoc[x]
+  n501y_panel$scaled_infection[x] <- n501y_panel$moi[x] / (n501y_panel[
+    n501y_panel$recombined_construct == "G755A" & 
+      n501y_panel$date == temp_date &
+      n501y_panel$expt == temp_expt &
+      n501y_panel$pseudovirus_env == temp_pseudovirus_env & 
+      n501y_panel$pseudovirus_inoc == temp_pseudovirus_inoc,"moi"])}
+
+n501y_panel$log_scaled_infection <- log10(n501y_panel$scaled_infection)
+n501y_panel$count <- 1
+n501y_panel <- merge(n501y_panel, recombined_construct_key %>% filter(sequence_confirmed == "yes"), all.x = T)
+
+n501y_panel2 <- n501y_panel %>% group_by(pseudovirus_env, cell_label) %>% summarize(geo_mean = mean(log_scaled_infection), sd = sd(log_scaled_infection), count = sum(count), cell_label = unique(cell_label), .groups = 'drop')
+n501y_panel2 <- merge(n501y_panel2, recombined_construct_key %>% filter(sequence_confirmed == "yes"), all.x = T)
+
+n501y_panel2$mean <- 10^n501y_panel2$geo_mean
+n501y_panel2$upper_ci <- 10^(n501y_panel2$geo_mean + n501y_panel2$sd/sqrt(n501y_panel2$count-1)*1.96)
+n501y_panel2$lower_ci <- 10^(n501y_panel2$geo_mean - n501y_panel2$sd/sqrt(n501y_panel2$count-1)*1.96)
+
+n501y_g742a <- n501y_panel2 %>% filter(pseudovirus_env == "G742A") %>% mutate(wt_mean = mean) %>% select(c("cell_label","wt_mean"))
+n501y_g908a <- n501y_panel2 %>% filter(pseudovirus_env == "G908A") %>% mutate(n501y_mean = mean) %>% select(c("cell_label","n501y_mean"))
+
+n501y_panel3 <- merge(n501y_g742a, n501y_g908a, by = "cell_label")
+
+ggplot() + theme_bw() + scale_x_log10() + scale_y_log10() + 
+  geom_point(data = n501y_panel3, aes(x = wt_mean, y = n501y_mean)) + 
+  geom_text_repel(data = n501y_panel3, aes(x = wt_mean, y = n501y_mean, label = cell_label))
+```
+
