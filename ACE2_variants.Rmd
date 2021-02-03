@@ -876,6 +876,8 @@ paste("For the low data, the spearman's p value is", round(cor.test(procko_muts2
 paste("For the high data, the spearman's p value is", round(cor.test(procko_muts2b_complete$procko_rescaled_high,procko_muts2b_complete$mean, method = "spearman", use = "complete.obs")$p.value,2))
 ```
 
+
+
 ```{r}
 n501y_precursor <- infection_data %>% filter(expt == "N501Y_expts")
 n501y_panel <- merge(n501y_precursor, recombined_construct_key, all.x = T) %>% filter(sequence_confirmed == "yes")
@@ -889,8 +891,7 @@ for(x in 1:nrow(n501y_panel)){
     n501y_panel$recombined_construct == "G755A" & 
       n501y_panel$date == temp_date &
       n501y_panel$expt == temp_expt &
-      n501y_panel$pseudovirus_env == temp_pseudovirus_env & 
-      n501y_panel$pseudovirus_inoc == temp_pseudovirus_inoc,"moi"])}
+      n501y_panel$pseudovirus_env == temp_pseudovirus_env,"moi"])}
 
 n501y_panel$log_scaled_infection <- log10(n501y_panel$scaled_infection)
 n501y_panel$count <- 1
@@ -903,13 +904,43 @@ n501y_panel2$mean <- 10^n501y_panel2$geo_mean
 n501y_panel2$upper_ci <- 10^(n501y_panel2$geo_mean + n501y_panel2$sd/sqrt(n501y_panel2$count-1)*1.96)
 n501y_panel2$lower_ci <- 10^(n501y_panel2$geo_mean - n501y_panel2$sd/sqrt(n501y_panel2$count-1)*1.96)
 
+variant_colors2 <- c("VSVG" = "red", "G742A" = "blue", "G882A" = "cyan", "G908A" = "magenta")
+
+Full_spike_variant_plot <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), plot.title = element_text(hjust = 0.5)) + #legend.position = "none"
+  scale_color_manual(values = variant_colors2) +
+  scale_y_log10(limits = c(0.005,3)) + labs(x = NULL, y = "Fold infection") +   #scale_y_log10(limits = c(0.035,4))
+  geom_hline(yintercept = 1, linetype = 2, alpha = 0.5) +
+  geom_errorbar(data = n501y_panel2, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci, group = pseudovirus_env), alpha = 0.4, width = 0.4, position = position_dodge(width = 0.4)) +
+  geom_jitter(data = n501y_panel, aes(x = cell_label, y = scaled_infection, color = pseudovirus_env), position = position_dodge(width = 0.4), alpha = 0.4) +
+  geom_point(data = n501y_panel2, aes(x = cell_label, y = mean, color = pseudovirus_env), position = position_dodge(width = 0.4), size = 6, shape = 95)
+Full_spike_variant_plot
+
+
 n501y_g742a <- n501y_panel2 %>% filter(pseudovirus_env == "G742A") %>% mutate(wt_mean = mean) %>% select(c("cell_label","wt_mean"))
 n501y_g908a <- n501y_panel2 %>% filter(pseudovirus_env == "G908A") %>% mutate(n501y_mean = mean) %>% select(c("cell_label","n501y_mean"))
+n501y_g882a <- n501y_panel2 %>% filter(pseudovirus_env == "G882A") %>% mutate(d614g_mean = mean) %>% select(c("cell_label","d614g_mean"))
 
 n501y_panel3 <- merge(n501y_g742a, n501y_g908a, by = "cell_label")
+n501y_panel3 <- merge(n501y_panel3, n501y_g882a, by = "cell_label")
+
+
+
+
 
 ggplot() + theme_bw() + scale_x_log10() + scale_y_log10() + 
+  geom_abline(slope = 1, alpha = 0.2, size = 4) +
+  geom_point(data = n501y_panel3, aes(x = wt_mean, y = d614g_mean)) + 
+  geom_text_repel(data = n501y_panel3, aes(x = wt_mean, y = d614g_mean, label = cell_label), color = "red", segment.color = "orange", segment.alpha = 0.5)
+
+ggplot() + theme_bw() + scale_x_log10() + scale_y_log10() + 
+  geom_abline(slope = 1, alpha = 0.2, size = 4) +
   geom_point(data = n501y_panel3, aes(x = wt_mean, y = n501y_mean)) + 
-  geom_text_repel(data = n501y_panel3, aes(x = wt_mean, y = n501y_mean, label = cell_label))
+  geom_text_repel(data = n501y_panel3, aes(x = wt_mean, y = n501y_mean, label = cell_label), color = "red", segment.color = "orange", segment.alpha = 0.5)
+
+ggplot() + theme_bw() + scale_x_log10() + scale_y_log10() + 
+  geom_abline(slope = 1, alpha = 0.2, size = 4) +
+  geom_point(data = n501y_panel3, aes(x = d614g_mean, y = n501y_mean)) + 
+  geom_text_repel(data = n501y_panel3, aes(x = d614g_mean, y = n501y_mean, label = cell_label), color = "red", segment.color = "orange", segment.alpha = 0.5)
 ```
 
