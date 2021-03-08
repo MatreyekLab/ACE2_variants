@@ -1960,3 +1960,45 @@ paste("WT vs N501Y: The Spearman's rho^2 is", round(cor(spike_variant_panel3$wt_
 ```
 
     ## [1] "WT vs N501Y: The Spearman's rho^2 is 0.91"
+<<<<<<< HEAD
+=======
+
+## SCRATCH
+
+``` r
+pseudovirus_thresholds <- c(seq(0.01,0.09,0.01),seq(0.1,0.9,0.1),seq(1,3,1))
+replication_thresholds <- c(seq(0.001,0.009,0.001),seq(0.01,0.09,0.01),seq(0.1,0.9,0.1),seq(1,3,1))
+
+various_thresholds <- data.frame("pseudovirus" = rep(pseudovirus_thresholds, times = length(replication_thresholds)), "replication" = rep(replication_thresholds, each = length(pseudovirus_thresholds)))
+
+various_thresholds$correctly_scored <- NA
+#various_thresholds$fpr <- NA
+
+for(x in 1:nrow(various_thresholds)){
+  various_thresholds$correctly_scored[x] <- (nrow(tcid50_summary2 %>% filter(mean > various_thresholds$pseudovirus[x] & tcid_geomean > various_thresholds$replication[x]))) + (nrow(tcid50_summary2 %>% filter(mean <= various_thresholds$pseudovirus[x] & tcid_geomean <= various_thresholds$replication[x])))
+}
+
+various_thresholds$frac_correctly_scored <- various_thresholds$correctly_scored / 10
+
+pseudovirus_thresholds2 <- c(0.009,pseudovirus_thresholds)
+replication_thresholds2 <- c(0.0009,replication_thresholds)
+various_thresholds$xmin <- 0
+various_thresholds$ymin <- 0
+
+for(x in 1:nrow(various_thresholds)){
+  various_thresholds$xmin[x] <- pseudovirus_thresholds2[which(pseudovirus_thresholds2 == various_thresholds$pseudovirus[x])-1]
+  various_thresholds$ymin[x] <- replication_thresholds2[which(replication_thresholds2 == various_thresholds$replication[x])-1]
+}
+
+ggplot() + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + 
+  scale_x_log10(expand = c(0,0)) + scale_y_log10(expand = c(0,0)) +
+  geom_rect(data = various_thresholds, aes(xmin = xmin, xmax = pseudovirus, ymin = ymin, ymax = replication, fill = frac_correctly_scored)) + scale_fill_gradient(low = "white", high = "grey75") +
+  labs(x = "SARS-CoV-2 Pseudovirus Infection", y = "Relative SAR-CoV-2 Infection\nto WT cells (TCID50)") +
+  geom_hline(yintercept = 0.1, linetype = 2, alpha = 0.4) + 
+  geom_vline(xintercept = 0.3, linetype = 2, alpha = 0.4) + 
+  geom_text_repel(data = tcid50_summary2, aes(x = mean, y = tcid_geomean, label = variant), color = "red", segment.color = "orange", size = 3) +
+  geom_point(data = tcid50_summary2, aes(x = mean, y = tcid_geomean))
+```
+
+![](ACE2_variants_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+>>>>>>> ae5bbf3c1a48b8b7a0f5c7ef3dda0d360470fd50
