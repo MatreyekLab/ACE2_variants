@@ -34,6 +34,23 @@ if(!requireNamespace("patchwork")){install.packages("patchwork")};library(patchw
     ## Loading required namespace: patchwork
 
 ``` r
+if(!requireNamespace("reshape")){install.packages("reshape")};library(reshape)
+```
+
+    ## Loading required namespace: reshape
+
+    ## 
+    ## Attaching package: 'reshape'
+
+    ## The following object is masked from 'package:dplyr':
+    ## 
+    ##     rename
+
+    ## The following objects are masked from 'package:tidyr':
+    ## 
+    ##     expand, smiths
+
+``` r
 set.seed(123)
 
 virus_label_factors <- c("VSVG","SARS1", "SARS2", "SARS2_min", "d19", "d19_min", "RRAR>A(Furin)", "P812R","D614G")
@@ -1196,6 +1213,80 @@ paste("Fold difference in infection with SARS-CoV-2 spike pseudoviruses between 
     ## [1] "Fold difference in infection with SARS-CoV-2 spike pseudoviruses between WT and G751E ACE2 behind a suboptimal Kozak: 1.5"
 
 ``` r
+ace2_1 <- read.csv(file = "Data/Western_blot/210323_ace2.csv", header = T, stringsAsFactors = F)
+ace2_1$ace2_1 <- ace2_1$adj_band_vol_int / ace2_1[ace2_1$recombined_construct == "G755A","adj_band_vol_int"]
+ace2_2 <- read.csv(file = "Data/Western_blot/210331_ace2.csv", header = T, stringsAsFactors = F)
+ace2_2$ace2_2 <- ace2_2$adj_band_vol_int / ace2_2[ace2_2$recombined_construct == "G755A","adj_band_vol_int"]
+ace2_3 <- read.csv(file = "Data/Western_blot/210409_ace2.csv", header = T, stringsAsFactors = F)
+ace2_3$ace2_3 <- ace2_3$adj_band_vol_int / ace2_3[ace2_3$recombined_construct == "G755A","adj_band_vol_int"]
+
+actin_1 <- read.csv(file = "Data/Western_blot/210323_actin.csv", header = T, stringsAsFactors = F)
+actin_1$actin_1 <- actin_1$adj_band_vol_int / actin_1[actin_1$recombined_construct == "G755A","adj_band_vol_int"]
+actin_2 <- read.csv(file = "Data/Western_blot/210331_actin.csv", header = T, stringsAsFactors = F)
+actin_2$actin_2 <- actin_2$adj_band_vol_int / actin_2[actin_2$recombined_construct == "G755A","adj_band_vol_int"]
+actin_3 <- read.csv(file = "Data/Western_blot/210409_actin.csv", header = T, stringsAsFactors = F)
+actin_3$actin_3 <- actin_3$adj_band_vol_int / actin_3[actin_3$recombined_construct == "G755A","adj_band_vol_int"]
+
+western_blot_data <- merge(ace2_1[,c("recombined_construct","ace2_1")],ace2_2[,c("recombined_construct","ace2_2")], by = "recombined_construct")
+western_blot_data <- merge(western_blot_data,ace2_3[,c("recombined_construct","ace2_3")], by = "recombined_construct")
+western_blot_data <- merge(western_blot_data,actin_1[,c("recombined_construct","actin_1")], by = "recombined_construct")
+western_blot_data <- merge(western_blot_data,actin_2[,c("recombined_construct","actin_2")], by = "recombined_construct")
+western_blot_data <- merge(western_blot_data,actin_3[,c("recombined_construct","actin_3")], by = "recombined_construct")
+
+western_blot_data$mean_ace2 <- (western_blot_data$ace2_1 + western_blot_data$ace2_2 + western_blot_data$ace2_3) / 3
+western_blot_data2 <- merge(western_blot_data, recombined_construct_key[,c("recombined_construct","cell_label")], all.x = T)
+
+western_blot_data3 <- melt(western_blot_data2[c("cell_label","ace2_1", "ace2_2", "ace2_3")], id = "cell_label") %>% mutate(n = 1)
+western_blot_data3$log10_value <- log10(western_blot_data3$value) 
+
+western_blot_data3_summary <- western_blot_data3 %>% group_by(cell_label) %>% summarize(mean_log10 = mean(log10_value), sd_log10 = sd(log10_value), n = sum(n), mean = 10^mean(log10_value))
+```
+
+    ## `summarise()` ungrouping output (override with `.groups` argument)
+
+``` r
+western_blot_data3_summary$upper_ci <- 10^(western_blot_data3_summary$mean_log10 + 1.96 * (western_blot_data3_summary$sd_log10 / sqrt(western_blot_data3_summary$n-1)))
+western_blot_data3_summary$lower_ci <- 10^(western_blot_data3_summary$mean_log10 - 1.96 * (western_blot_data3_summary$sd_log10 / sqrt(western_blot_data3_summary$n-1)))
+
+
+western_blot_data3$cell_label <- factor(western_blot_data3$cell_label, levels = c("ACE2(dEcto)","ACE2(low)","ACE2(low)-I21N","ACE2(low)-I21V","ACE2(low)-E23K","ACE2(low)-K26E","ACE2(low)-K26R","ACE2(low)-T27A","ACE2(low)-K31D","ACE2(low)-E35K","ACE2(low)-E37K","ACE2(low)-D38H","ACE2(low)-Y41A","ACE2(low)-Q42R","ACE2(low)-M82I","ACE2(low)-Y83F","ACE2(low)-G211R","ACE2(low)-G326E","ACE2(low)-E329K","ACE2(low)-G352V","ACE2(low)-K353D","ACE2(low)-D355N","ACE2(low)-R357A","ACE2(low)-R357T","ACE2(low)-P389H","ACE2(low)-T519I","ACE2(low)-S692P","ACE2(low)-N720D", "ACE2(low)-L731F", "ACE2(low)-G751E"))
+western_blot_data3_summary$cell_label <- factor(western_blot_data3_summary$cell_label, levels = c("ACE2(dEcto)","ACE2(low)","ACE2(low)-I21N","ACE2(low)-I21V","ACE2(low)-E23K","ACE2(low)-K26E","ACE2(low)-K26R","ACE2(low)-T27A","ACE2(low)-K31D","ACE2(low)-E35K","ACE2(low)-E37K","ACE2(low)-D38H","ACE2(low)-Y41A","ACE2(low)-Q42R","ACE2(low)-M82I","ACE2(low)-Y83F","ACE2(low)-G211R","ACE2(low)-G326E","ACE2(low)-E329K","ACE2(low)-G352V","ACE2(low)-K353D","ACE2(low)-D355N","ACE2(low)-R357A","ACE2(low)-R357T","ACE2(low)-P389H","ACE2(low)-T519I","ACE2(low)-S692P","ACE2(low)-N720D", "ACE2(low)-L731F", "ACE2(low)-G751E"))
+
+Replicate_western_blots <- ggplot() + theme_bw() + 
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), plot.title = element_text(hjust = 0.5)) + 
+  scale_y_log10(breaks = c(0.3,0.5,1,2)) + 
+  labs(x = NULL, y = "ACE2 band densities") + 
+  geom_point(data = western_blot_data3, aes(x = cell_label, y = value), alpha = 0.2) +
+  geom_errorbar(data = western_blot_data3_summary, aes(x = cell_label, ymin = lower_ci, ymax = upper_ci), alpha = 0.4, width = 0.4) + 
+  geom_point(data = western_blot_data3_summary, aes(x = cell_label, y = mean), size = 8, shape = 95)
+ggsave(file = "Plots/Replicate_western_blots.pdf", Replicate_western_blots, height = 2.4, width = 4)
+
+western_blot_data2_sars1 <- merge(western_blot_data2 , full_variant_panel2 %>% filter(pseudovirus_env == "SARS1"), by = "cell_label")
+western_blot_data2_sars1[western_blot_data2_sars1$variant == "NULL","variant"] <- "dEcto"
+sars1_western_scatterplot <- ggplot() + theme_bw() + 
+  theme(panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), 
+        plot.title = element_text(hjust = 0.5)) + 
+  scale_x_log10(limits = c(0.01, 1.8)) + scale_y_log10(limits = c(0.4,1.4)) + 
+  labs(x = "SARS-CoV pseudovirus infection", y = "Total ACE2 protein") +
+  geom_text_repel(data = western_blot_data2_sars1, aes(x = mean, y = mean_ace2, label = variant), color = "red", segment.color = "grey75") +
+  geom_point(data = western_blot_data2_sars1, aes(x = mean, y = mean_ace2), alpha = 0.5)
+  
+ggsave(file = "Plots/Sars1_western_scatterplot.pdf", sars1_western_scatterplot, height = 1.8, width = 2.5)
+
+western_blot_data2_sars2 <- merge(western_blot_data2 , full_variant_panel2 %>% filter(pseudovirus_env == "SARS2"), by = "cell_label")
+western_blot_data2_sars2[western_blot_data2_sars2$variant == "NULL","variant"] <- "dEcto"
+sars2_western_scatterplot <- ggplot() + theme_bw() + 
+  theme(panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), 
+        plot.title = element_text(hjust = 0.5)) + 
+  scale_x_log10(limits = c(0.01, 1.8)) + scale_y_log10(limits = c(0.4,1.4)) + 
+  labs(x = "SARS-CoV-2 pseudovirus infection", y = "Total ACE2 protein") +
+  geom_text_repel(data = western_blot_data2_sars2, aes(x = mean, y = mean_ace2, label = variant), color = "red", segment.color = "grey75") +
+  geom_point(data = western_blot_data2_sars2, aes(x = mean, y = mean_ace2), alpha = 0.5)
+  
+ggsave(file = "Plots/Sars2_western_scatterplot.pdf", sars2_western_scatterplot, height = 1.8, width = 2.5)
+```
+
+``` r
 # c("ACE2(dEcto)","ACE2(low)","ACE2(low)-I21N","ACE2(low)-I21V","ACE2(low)-E23K","ACE2(low)-K26E","ACE2(low)-K26R","ACE2(low)-T27A","ACE2(low)-K31D","ACE2(low)-E35K","ACE2(low)-D38H","ACE2(low)-Y41A","ACE2(low)-Q42R","ACE2(low)-M82I","ACE2(low)-Y83F","ACE2(low)-E329K","ACE2(low)-G352V","ACE2(low)-K353D","ACE2(low)-R357A","ACE2(low)-R357T"))
 
 panel3 <- c("ACE2(low)-K26R", "ACE2(low)-M82I", "ACE2(low)-E35K", "ACE2(low)-I21V", "ACE2(low)-T27A", "ACE2(low)-G352V", "ACE2(low)-E23K", "ACE2(low)-K26E", "ACE2(low)-D355N","ACE2(low)-E37K","ACE2(low)-G326E")
@@ -1273,10 +1364,10 @@ gnomad_sars1 <- full_variant_panel_combined2 %>% filter(pseudovirus_env == "SARS
 gnomad_sars1_plot <- ggplot() + scale_y_log10(limits = c(10^-6,2), breaks = c(1,0.001, 0.00001)) + scale_x_log10(breaks = c(0.1, 1)) + theme_bw() + theme(panel.grid.minor.y = element_blank()) + 
   labs(y = "Allele frequency", x = "SARS-CoV infection") +
   geom_point(data = gnomad_sars1 , aes(y = average_frequency, x = mean), alpha = 0.5) +
-  geom_point(data = NULL , aes(y = 2 - sum(gnomad_sars1$average_frequency, na.rm = T), x = 1), alpha = 0.5) +
+  geom_point(data = NULL , aes(y = approximate_wt_gnomad_frequency, x = 1), alpha = 0.5) +
   geom_text_repel(data = gnomad_sars1 %>% filter(mean < 0.316), aes(y = average_frequency, x = mean, label = variant), color = "red") +
   geom_text_repel(data = gnomad_sars1 %>% filter(mean > 1.5), aes(y = average_frequency, x = mean, label = variant), color = "red") +
-  geom_text_repel(data = NULL , aes(y = 2 - sum(gnomad_sars1$average_frequency, na.rm = T), x = 1, label = "WT"), color = "red")
+  geom_text_repel(data = NULL , aes(y = approximate_wt_gnomad_frequency, x = 1, label = "WT"), color = "red")
 gnomad_sars1_plot
 ```
 
@@ -1315,10 +1406,10 @@ gnomad_sars2 <- full_variant_panel_combined2 %>% filter(pseudovirus_env == "SARS
 gnomad_sars2_plot <- ggplot() + scale_y_log10(limits = c(10^-6,2), breaks = c(1,0.001, 0.00001)) + scale_x_log10(breaks = c(0.1, 1)) + theme_bw() + theme(panel.grid.minor.y = element_blank()) + 
   labs(y = "Allele frequency", x = "SARS-CoV-2 infection") +
   geom_point(data = gnomad_sars2, aes(y = average_frequency, x = mean), alpha = 0.5) +
-  geom_point(data = NULL , aes(y = 2 - sum(gnomad_sars2$average_frequency, na.rm = T), x = 1), alpha = 0.5) +
+  geom_point(data = NULL , aes(y = approximate_wt_gnomad_frequency, x = 1), alpha = 0.5) +
   geom_text_repel(data = gnomad_sars2 %>% filter(mean < 0.316), aes(y = average_frequency, x = mean, label = variant), color = "red") +
   geom_text_repel(data = gnomad_sars2 %>% filter(mean > 1.5), aes(y = average_frequency, x = mean, label = variant), color = "red") +
-  geom_text_repel(data = NULL , aes(y = 2 - sum(gnomad_sars2$average_frequency, na.rm = T), x = 1, label = "WT"), color = "red")
+  geom_text_repel(data = NULL , aes(y = approximate_wt_gnomad_frequency, x = 1, label = "WT"), color = "red")
 gnomad_sars2_plot
 ```
 
@@ -1628,10 +1719,10 @@ select sars1\_sidechain, (((2ajf\_ace2 and resi 41+355+37+393) OR
 (2ajf\_ace2 and resi 353 and name n+ca)
 
 ``` r
-tcid50 <- read.csv(file = "Data/TCID50.csv", header = T, stringsAsFactors = F) %>% filter(expt != "expt7") 
+tcid50 <- read.csv(file = "Data/TCID50.csv", header = T, stringsAsFactors = F) %>% filter(expt != "expt7")
 ## Expt7 WT (G755A) sample had little signal over the negative control (G758A), suggesting this expt should be thrown out.
 
-tcid50_repfilter <- tcid50 %>% group_by(plated, crystal_violet, recombined_construct) %>% select(plated, crystal_violet, recombined_construct) %>% distinct() %>% mutate(n = 1)
+tcid50_repfilter <- tcid50 %>% group_by(date, recombined_construct) %>% select(date, recombined_construct) %>% distinct() %>% mutate(n = 1)
 tcid50_repfilter2 <- tcid50_repfilter %>% group_by(recombined_construct) %>% summarize(n = sum(n))
 ```
 
@@ -1675,7 +1766,7 @@ TCID50_plot <- ggplot() + theme_bw() +
   theme(axis.text.x = element_text(angle = -45, hjust = 0, vjust = 1), 
         panel.grid.major.x = element_blank(), legend.position = "none") + 
   labs(x = NULL, y = "TCID\n(Normalized to WT)") +
-  scale_y_log10(limits = c(1e-5,50)) + 
+  scale_y_log10() + 
   geom_errorbar(data = tcid50_summary2, aes(x = variant, ymin = tcid50_lowerci, ymax = tcid_upperci), alpha = 0.4, width = 0.4) +
   geom_point(data = tcid50_summary2, aes(x = variant, y = tcid_geomean), shape = 95, size = 5) +
   geom_point(data = tcid_norm_frame2, aes(x = variant, y = norm_tcid50, color = no_cpe), alpha = 0.4)
@@ -1691,7 +1782,7 @@ TCID50_pseudovirus_scatterplot <- ggplot() + theme_bw() +
   theme(panel.grid.minor = element_blank()) + 
   scale_x_log10() + scale_y_log10() + 
   labs(x = "SARS-CoV-2 Pseudovirus Infection", y = "Relative SAR-CoV-2 Infection\nto WT cells (TCID50)") +
-  geom_hline(yintercept = 0.03, linetype = 2, color = "blue", alpha = 0.3) + 
+  geom_hline(yintercept = 0.1, linetype = 2, color = "blue", alpha = 0.3) + 
   geom_vline(xintercept = 0.3, linetype = 2, color = "blue", alpha = 0.3) + 
   geom_text_repel(data = tcid50_summary2, aes(x = mean, y = tcid_geomean, label = variant), color = "red", segment.color = "orange", size = 3) +
   geom_point(data = tcid50_summary2, aes(x = mean, y = tcid_geomean), alpha = 0.5)
@@ -1709,7 +1800,7 @@ TCID50_binding_scatterplot <- ggplot() + theme_bw() +
   theme(panel.grid.minor = element_blank()) + 
   scale_x_log10(breaks = c(0.25, 0.5, 1, 2)) + scale_y_log10() + 
   labs(x = "Soluble RBD Binding", y = "Relative SAR-CoV-2 Infection\nto WT cells (TCID50)") +
-  geom_hline(yintercept = 0.03, linetype = 2, color = "blue", alpha = 0.3) + 
+  geom_hline(yintercept = 0.1, linetype = 2, color = "blue", alpha = 0.3) + 
   geom_vline(xintercept = 0.5, linetype = 2, color = "blue", alpha = 0.3) + 
   geom_text_repel(data = tcid50_summary_binding, aes(x = procko_rescaled_mean, y = tcid_geomean, label = variant), color = "red", segment.color = "orange", size = 3) +
   geom_point(data = tcid50_summary_binding, aes(x = procko_rescaled_mean, y = tcid_geomean), alpha = 0.5)
@@ -1960,45 +2051,3 @@ paste("WT vs N501Y: The Spearman's rho^2 is", round(cor(spike_variant_panel3$wt_
 ```
 
     ## [1] "WT vs N501Y: The Spearman's rho^2 is 0.91"
-<<<<<<< HEAD
-=======
-
-## SCRATCH
-
-``` r
-pseudovirus_thresholds <- c(seq(0.01,0.09,0.01),seq(0.1,0.9,0.1),seq(1,3,1))
-replication_thresholds <- c(seq(0.001,0.009,0.001),seq(0.01,0.09,0.01),seq(0.1,0.9,0.1),seq(1,3,1))
-
-various_thresholds <- data.frame("pseudovirus" = rep(pseudovirus_thresholds, times = length(replication_thresholds)), "replication" = rep(replication_thresholds, each = length(pseudovirus_thresholds)))
-
-various_thresholds$correctly_scored <- NA
-#various_thresholds$fpr <- NA
-
-for(x in 1:nrow(various_thresholds)){
-  various_thresholds$correctly_scored[x] <- (nrow(tcid50_summary2 %>% filter(mean > various_thresholds$pseudovirus[x] & tcid_geomean > various_thresholds$replication[x]))) + (nrow(tcid50_summary2 %>% filter(mean <= various_thresholds$pseudovirus[x] & tcid_geomean <= various_thresholds$replication[x])))
-}
-
-various_thresholds$frac_correctly_scored <- various_thresholds$correctly_scored / 10
-
-pseudovirus_thresholds2 <- c(0.009,pseudovirus_thresholds)
-replication_thresholds2 <- c(0.0009,replication_thresholds)
-various_thresholds$xmin <- 0
-various_thresholds$ymin <- 0
-
-for(x in 1:nrow(various_thresholds)){
-  various_thresholds$xmin[x] <- pseudovirus_thresholds2[which(pseudovirus_thresholds2 == various_thresholds$pseudovirus[x])-1]
-  various_thresholds$ymin[x] <- replication_thresholds2[which(replication_thresholds2 == various_thresholds$replication[x])-1]
-}
-
-ggplot() + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + 
-  scale_x_log10(expand = c(0,0)) + scale_y_log10(expand = c(0,0)) +
-  geom_rect(data = various_thresholds, aes(xmin = xmin, xmax = pseudovirus, ymin = ymin, ymax = replication, fill = frac_correctly_scored)) + scale_fill_gradient(low = "white", high = "grey75") +
-  labs(x = "SARS-CoV-2 Pseudovirus Infection", y = "Relative SAR-CoV-2 Infection\nto WT cells (TCID50)") +
-  geom_hline(yintercept = 0.1, linetype = 2, alpha = 0.4) + 
-  geom_vline(xintercept = 0.3, linetype = 2, alpha = 0.4) + 
-  geom_text_repel(data = tcid50_summary2, aes(x = mean, y = tcid_geomean, label = variant), color = "red", segment.color = "orange", size = 3) +
-  geom_point(data = tcid50_summary2, aes(x = mean, y = tcid_geomean))
-```
-
-![](ACE2_variants_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
->>>>>>> ae5bbf3c1a48b8b7a0f5c7ef3dda0d360470fd50
