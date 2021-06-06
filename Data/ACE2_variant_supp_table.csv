@@ -1,0 +1,29 @@
+﻿index,variant,pmid,rationale
+1,I21N,,proximal to interface
+2,I21V,,proximal to interface
+3,E23K,,proximal to interface
+4,K26E,,proximal to interface
+5,K26R,,proximal to interface
+6,T27A,,proximal to interface
+7,K31D,15791205,known to affect SARS-CoV binding
+8,E35K,,proximal to interface
+9,E37K,,proximal to interface
+10,D38H,,proximal to interface
+11,Y41A,15791205,known to affect SARS-CoV binding
+12,Q42R,,proximal to interface
+13,M82I,,proximal to interface
+14,Y83F,,proximal to interface
+15,G211R,,"more frequent human variant, distal to interface"
+16,G326E,,proximal to interface
+17,E329K,,proximal to interface
+18,G352V,,proximal to interface
+19,K353D,15791205,known to affect SARS-CoV binding
+20,D355N,,proximal to interface
+21,R357A,15791205,known to affect SARS-CoV binding
+22,R357T,,different variant of known binding residue
+23,P389H,,"more frequent human variant, distal to interface"
+24,T519I,,"more frequent human variant, distal to interface"
+25,S692P,,"more frequent human variant, distal to interface"
+26,N720D,,"more frequent human variant, distal to interface"
+27,L731F,,"more frequent human variant, distal to interface"
+28,G751E,,"more frequent human variant, distal to interface, predicted loss of abundance"

@@ -570,6 +570,75 @@ paste("Fold difference in infection with SARS-CoV spike pseudoviruses between th
 paste("Fold difference in infection with SARS-CoV-2 spike pseudoviruses between the consensus and suboptimal Kozak ACE2:", round(kozaks_combined_wts2[kozaks_combined_wts2$cell_label == "ACE2" & kozaks_combined_wts2$pseudovirus_env == "SARS2","mean"]/ kozaks_combined_wts2[kozaks_combined_wts2$cell_label == "ACE2(low)" & kozaks_combined_wts2$pseudovirus_env == "SARS2","mean"],1))
 ```
 
+```{r Comparing endogenous expression levels with our engineered cells}
+endogenous <- read.csv(file = "Data/Western_blot/Endogenous_vs_suboptimal.csv", stringsAsFactors = F) %>% filter(analysis == "endogenous")
+endogenous_unique_date <- data.frame(date = unique(endogenous$date), analysis = "293T")
+
+for(x in 1:nrow(endogenous_unique_date)){
+  temp_date <- endogenous_unique_date$date[x]
+  temp_suboptimal <- endogenous %>% filter(date == temp_date)
+  endogenous_unique_date$relative_density[x] <- temp_suboptimal[temp_suboptimal$recombined_construct == "G758A","adj_band_vol_int"] / temp_suboptimal[temp_suboptimal$recombined_construct == "G755A","adj_band_vol_int"]
+}
+
+vero <- read.csv(file = "Data/Western_blot/Endogenous_vs_suboptimal.csv", stringsAsFactors = F) %>% filter(analysis == "vero")
+vero_unique_date <- data.frame(date = unique(vero$date), analysis = "VeroE6")
+
+for(x in 1:nrow(vero_unique_date)){
+  temp_date <- vero_unique_date$date[x]
+  temp_suboptimal <- vero %>% filter(date == temp_date)
+  vero_unique_date$relative_density[x] <- temp_suboptimal[temp_suboptimal$recombined_construct == "VeroE6","adj_band_vol_int"] / temp_suboptimal[temp_suboptimal$recombined_construct == "G755A","adj_band_vol_int"]
+}
+
+endogenous_vero_combined <- rbind(endogenous_unique_date, vero_unique_date)
+
+endogenous_vero_combined_summary <- endogenous_vero_combined %>% mutate(n = 1, log_rel_density = log10(relative_density)) %>% group_by(analysis) %>% summarize(mean_log = mean(log_rel_density), sd_log =  sd(log10(relative_density)), n = sum(n), .groups = "drop") %>% 
+  mutate(geomean = 10^mean_log, upper_ci = 10^(mean_log + (sd_log/sqrt(n) * 1.96)), lower_ci = 10^(mean_log - (sd_log/sqrt(n) * 1.96)))
+
+Endogenous_ACE2_levels <- ggplot() + theme_bw() + theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank()) + 
+  labs(x = "Endogenous ACE2\nexpression", y = "Fold ACE2 protein\nabundance compared to\nSuboptimal Kozak\ntransgenic ACE2 cells") + 
+  scale_y_log10(breaks = c(0.25, 0.33, 0.50, 1, 2, 3, 4)) + 
+  geom_hline(yintercept = 1, linetype = 2) +
+  geom_errorbar(data = endogenous_vero_combined_summary, aes(x = analysis, ymin = lower_ci, ymax = upper_ci), alpha = 0.4, width = 0.1) +
+  geom_point(data = endogenous_vero_combined, aes(x = analysis, y = relative_density), color = "red", alpha = 0.5) +
+   geom_point(data = endogenous_vero_combined_summary, aes(x = analysis, y = geomean), shape = 95, size = 10)
+ggsave(file = "Plots/Endogenous_ACE2_levels.pdf", Endogenous_ACE2_levels, height = 2, width = 2)
+Endogenous_ACE2_levels
+
+gtex <- read.delim("Data/GTEx/ACE2.tsv", sep = "\t", stringsAsFactors = F)
+gtex2 = data.frame(t(gtex))
+gtex2$label <- row.names(gtex2)
+colnames(gtex2) <- c("rna","label")
+gtex2$rna <- as.numeric(as.character(gtex2$rna))
+
+Representative_cell_lines <- gtex2 %>% filter(grepl("HEK", label))
+
+gtex2_tissues <- gtex2 %>% filter(grepl("Tissue.RNA", label)) %>% mutate(type = "Tissues")
+gtex2_cells <- gtex2 %>% filter(grepl("Single.Cell.Type", label)) %>% mutate(type = "Primary cells")
+
+gtex3 <- rbind(gtex2_tissues,gtex2_cells)
+gtex3[gtex3$rna == 0,"rna"] <- 0.05
+
+ACE2_GTEx_plot <- ggplot() + theme_bw() + theme(panel.grid.minor = element_blank()) +
+  scale_x_log10() + scale_y_continuous(expand = c(0,0)) + scale_fill_manual(values = c("Primary cells" = "orange", "Tissues" = "purple")) +
+  labs(x = "Relative ACE2 expression", y = "Number of GTEx entries") +
+  geom_histogram(data = gtex3, aes(x = rna, fill = type), binwidth = 0.2) +
+  geom_vline(xintercept = 0.065) +
+  geom_point(data = Representative_cell_lines, aes(x = rna, y = 7)) +
+  geom_text(data = Representative_cell_lines, aes(x = rna, y = 8, label = "HEK 293"), angle = 90, hjust = 0, size = 2) +
+  geom_point(data = NULL, aes(x = 0.8, y = 7)) +
+  geom_text(data = NULL, aes(x = 0.8, y = 8, label = "Lung tissue"), angle = 90, hjust = 0, size = 2) +
+  geom_vline(xintercept = 0.4, linetype = 2, color = "blue") +
+  geom_text(data = NULL, aes(x = 0.4*1.75, y = 18, label = "Estimated\nSuboptimal Kozak\nlevel"), angle = 90, hjust = 0.5, color = "blue", size = 2) +
+  geom_vline(xintercept = 1.6, linetype = 2, color = "red") +
+  geom_text(data = NULL, aes(x = 1.4*1.75, y = 18, label = "Estimated\nVeroE6 level"), angle = 90, hjust = 0.5, color = "red", size = 2)
+ggsave(file = "Plots/ACE2_GTEx_plot.pdf", ACE2_GTEx_plot, height = 1.6, width = 4)
+ACE2_GTEx_plot
+
+nrow(gtex3 %>% filter(rna >= 0.4)) / nrow(gtex3)
+nrow(gtex3 %>% filter(rna >= 1.6)) / nrow(gtex3)
+```
+
+
 ```{r Seeing how the ACE2 variants affect entry}
 ## Now seeing how this may differ with a suboptimal Kozak
 kozaks_combined_suboptimal <- infection_data %>% filter(expt != "N501Y_expts" & (cell_label %in% c("ACE2(low)","ACE2(dEcto)","ACE2(low)-K31D","ACE2(low)-K353D")) & !(pseudovirus_env %in% c("None","none")))
@@ -745,8 +814,8 @@ paste("Fold difference in infection with SARS-CoV-2 spike pseudoviruses between 
 
 
 ```{r Bring in the GnomAD data and look at that}
-gnomad <- read.csv(file = "Data/gnomAD_v3.1_ENSG00000130234_2021_02_07_19_37_48.csv", header = T, stringsAsFactors = F) %>% filter(!(VEP.Annotation %in% c("splice_donor_variant","splice_donor")) & !(Protein.Consequence == "p.Met1?"))
-#gnomad <- read.csv(file = "Data/gnomAD_v2.1.1_ENSG00000130234_2020_11_05_13_45_18.csv", header = T, stringsAsFactors = F) %>% filter(!(Annotation %in% c("splice_donor_variant","splice_donor")) & !(Protein.Consequence == "p.Met1?"))
+#gnomad <- read.csv(file = "Data/gnomAD_v3.1_ENSG00000130234_2021_02_07_19_37_48.csv", header = T, stringsAsFactors = F) %>% filter(!(VEP.Annotation %in% c("splice_donor_variant","splice_donor")) & !(Protein.Consequence == "p.Met1?"))
+gnomad <- read.csv(file = "Data/gnomAD_v2.1.1_ENSG00000130234_2020_11_05_13_45_18.csv", header = T, stringsAsFactors = F) %>% filter(!(Annotation %in% c("splice_donor_variant","splice_donor")) & !(Protein.Consequence == "p.Met1?"))
 
 gnomad$variant <- substr(gnomad$Protein.Consequence,3,15)
 gnomad$position <- as.numeric(gsub("[A-Za-z]","",gnomad$variant))
@@ -896,7 +965,7 @@ western_blot_data2 <- merge(western_blot_data, recombined_construct_key[,c("reco
 western_blot_data3 <- melt(western_blot_data2[c("cell_label","ace2_1", "ace2_2", "ace2_3")], id = "cell_label") %>% mutate(n = 1)
 western_blot_data3$log10_value <- log10(western_blot_data3$value) 
 
-western_blot_data3_summary <- western_blot_data3 %>% group_by(cell_label) %>% summarize(mean_log10 = mean(log10_value), sd_log10 = sd(log10_value), n = sum(n), mean = 10^mean(log10_value))
+western_blot_data3_summary <- western_blot_data3 %>% group_by(cell_label) %>% summarize(mean_log10 = mean(log10_value), sd_log10 = sd(log10_value), n = sum(n), mean = 10^mean(log10_value), .groups = "drop")
 
 western_blot_data3_summary$upper_ci <- 10^(western_blot_data3_summary$mean_log10 + 1.96 * (western_blot_data3_summary$sd_log10 / sqrt(western_blot_data3_summary$n-1)))
 western_blot_data3_summary$lower_ci <- 10^(western_blot_data3_summary$mean_log10 - 1.96 * (western_blot_data3_summary$sd_log10 / sqrt(western_blot_data3_summary$n-1)))
@@ -1425,3 +1494,25 @@ paste("WT vs D614G: The Spearman's rho^2 is", round(cor(spike_variant_panel3$wt_
 paste("WT vs N501Y: The Pearson's r^2 is", round(cor(spike_variant_panel3$wt_mean, spike_variant_panel3$n501y_mean, method = "pearson")^2,2))
 paste("WT vs N501Y: The Spearman's rho^2 is", round(cor(spike_variant_panel3$wt_mean, spike_variant_panel3$n501y_mean, method = "spearman")^2,2))
 ```
+
+```{r Making a supplementary table explaining all of the variants of human ACE2 we tested in the manuscript}
+ace2_interface_spositions <- c(seq(21,24),seq(79,83),seq(321,330),seq(353,357),seq(383,389))
+supp_table <- read.csv(file = "Data/ACE2_variant_supp_table.csv", stringsAsFactors = F) %>% mutate(position = gsub("[A-Z]","",variant))
+variant_positions <- unique(supp_table$position)
+
+snv_table <- read.delim(file = "Data/ACE2_SNV_table.tsv", sep = "\t") %>% distinct(variant) %>% mutate(snv = "yes")
+supp_table2 <- merge(supp_table, snv_table, by = "variant", all.x = T) %>% arrange(index)
+gnomad_temp <- gnomad[,c("variant","Allele.Frequency","Homozygote.Count","Hemizygote.Count")]  %>% mutate(position = gsub("[A-Z]","",variant)) %>% filter(position %in% c(ace2_interface_spositions,variant_positions)); colnames(gnomad_temp) <- c("variant","gnomad_allele_freq","gnomad_homozygotes","gnomad_hemizygotes","position")
+supp_table3 <- merge(supp_table2, gnomad_temp[,!(colnames(gnomad_temp) %in% "position")], by = "variant", all = T)
+bravo_temp <- bravo[,c("variant","Frequency....","HomAlt","Het")] %>% mutate(position = gsub("[A-Z]","",variant)) %>% filter(position %in% c(ace2_interface_spositions,variant_positions)); colnames(bravo_temp) <- c("variant","bravo_allele_freq","bravo_homozygotes","bravo_hemizygotes","position")
+supp_table4 <- merge(supp_table3, bravo_temp[,!(colnames(gnomad_temp) %in% "position")], by = "variant", all = T)
+sars2_infection_temp <- full_variant_panel2 %>% filter(pseudovirus_env == "SARS2") %>% select(variant, mean) %>% filter(!(variant %in% c("WT","NULL"))); colnames(sars2_infection_temp) <- c("variant","sars_cov2_infection")
+supp_table5 <- merge(supp_table4, sars2_infection_temp, by = "variant", all = T) %>% arrange(index) %>% filter(variant != "N720S")
+
+write.table(file = "Supplementary_table_1.tsv", supp_table5[,!(colnames(supp_table5) %in% "index")], sep = "\t", quote = F, row.names = F)
+
+
+## Also making a supplementary table for the ACE2 variant pseudovirus infection data
+write.table(file = "Supplementary_table_2.tsv", full_variant_panel[,!(colnames(full_variant_panel) %in% c("count","sequence_confirmed"))], sep = "\t", quote = F, row.names = F)
+```
+
